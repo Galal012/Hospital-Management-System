@@ -40,6 +40,14 @@ class Department(Building):
         self._services_offered.append(service)
 
 
+class Pharmacy(Building):
+    ...
+
+
+class Ward(Building):
+    ...
+
+
 # Testing
 # doctor1 = Doctor("Galal", 18, "Male", {"number": "01279387959"}, 1, "Eys", "", [])
 # administration_building = Department("001", "Administration", doctor1.get_name())
