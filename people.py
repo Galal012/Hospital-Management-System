@@ -110,12 +110,13 @@ class Administrator(Person):
     def __init__(self, name, age, gender, contact_info):
         super().__init__(name, age, gender, contact_info)
         self._id = self.generate_id("ADM")
-contact_info = {"phone": "123-456-7890", "email": "john@example.com"}
-patient1 = Patient("John Doe", 35, "Male", contact_info)
-print(f"Patient ID: {patient1.get_id()}")  
+# iam testing braah
+#contact_info = {"phone": "123-456-7890", "email": "john@example.com"}
+#patient1 = Patient("John Doe", 35, "Male", contact_info)
+#print(f"Patient ID: {patient1.get_id()}")  
 
-doctor1 = Doctor("Jane Smith", 40, "Female", {"phone": "123-555-9876"}, "Cardiology")
-print(f"Doctor ID: {doctor1.get_id()}")  
+#doctor1 = Doctor("Jane Smith", 40, "Female", {"phone": "123-555-9876"}, "Cardiology")
+#print(f"Doctor ID: {doctor1.get_id()}")  
 
 nurse1 = Nurse("Mark Johnson", 28, "Male", {"phone": "555-1234"}, "Emergency")
 print(f"Nurse ID: {nurse1.get_id()}")  
