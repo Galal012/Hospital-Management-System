@@ -45,14 +45,46 @@ class Department(Building):
 
 
 class Pharmacy(Building):
-    ...
+    def __init__(self ,pharmacist, available_medicines = None , prescriptions_list = None) -> None:
+        self.available_medicines = dict()
+        self.prescriptions_list = list()
+        self.pharmacist = pharmacist
+        super().__init__()
 
+    def dispense_medication(self, prescription):
+        medicine_name = prescription.get("medicine_name")
+        quantity = prescription.get("quantity")
 
+        if medicine_name in self.available_medicines:
+            if self.available_medicines[medicine_name] >= quantity:
+                self.available_medicines[medicine_name] -= quantity
+                self.prescriptions_list.append(prescription)
+                print(f"Dispensed {quantity} units of {medicine_name}.")
+            else:
+                print(f"Insufficient stock for {medicine_name}. Available: {self.available_medicines[medicine_name]}")
+        else:
+            print(f"{medicine_name} is not available in the pharmacy.")
+    def check_stock(self, medicine_name):
+        return self.available_medicines.get(medicine_name, 0)
+    def update_medicine_list(self, medicine_name: str, quantity:int) -> None:
+        if medicine_name in self.available_medicines:
+            self.available_medicines[medicine_name]+= quantity
+        else:
+            self.available_medicines[medicine_name] = quantity
+        print(f"Updated {medicine_name} stock to {self.available_medicines[medicine_name]} units.")
+
+    def __str__(self):
+        """
+        for better represntation
+        """
+        return (f"Pharmacist: {self.pharmacist}\n"
+                f"Available Medicines: {self.available_medicines}\n"
+                f"Prescriptions List: {self.prescriptions_list}")
 class Ward(Building):
     ...
 
 
-# Testing
+# Testing department
 # doctor1 = Doctor("Galal", 18, "Male", "Eys")
 # administration_building = Department("Administration", doctor1.get_name())
 # administration_building.add_doctor(doctor1)
@@ -61,3 +93,15 @@ class Ward(Building):
 # print(administration_building.get_doctors_list())
 # print(administration_building.get_services_offered())
 # print(administration_building.get_id())
+#testing pharmacy
+#my_pharmacy = Pharmacy(pharmacist="John Doe")
+
+#my_pharmacy.update_medicine_list("Paracetamol", 100)
+#my_pharmacy.update_medicine_list("Ibuprofen", 50)
+#
+#print(f"Paracetamol stock: {my_pharmacy.check_stock('Paracetamol')}")
+#
+#prescription = {"medicine_name": "Paracetamol", "quantity": 10}
+#my_pharmacy.dispense_medication(prescription)
+#
+#print(my_pharmacy)
