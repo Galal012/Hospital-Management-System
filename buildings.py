@@ -1,14 +1,14 @@
 from typing import Dict, List
 from helper_classes import ID_Generator
-from people import Doctor
+from people import Doctor, Patient
 
 
 class Building:
     __number_of_buildings: int = 0
-    def __init__(self) -> None:
+    def __init__(self, build_type: str) :
         Building.__number_of_buildings += 1
-        self._id: str = ID_Generator.generate_id("BLD", Building.get_number_of_buildings())
-
+        self._id: str = ID_Generator.generate_id(build_type, Building.get_number_of_buildings())
+        return self._id
     @staticmethod
     def get_number_of_buildings() -> int:
         return Building.__number_of_buildings
@@ -19,7 +19,7 @@ class Building:
 
 class Department(Building):
     def __init__(self, name: str, head_of_department: str) -> None:
-        super().__init__()
+        super().__init__("BLD/D")
         self._name: str = name
         self._head_of_department: str = head_of_department
         self._doctors_list = list()
@@ -49,7 +49,7 @@ class Pharmacy(Building):
         self.available_medicines = dict()
         self.prescriptions_list = list()
         self.pharmacist = pharmacist
-        super().__init__()
+        self.id=super().__init__("BLD/PH")
 
     def dispense_medication(self, prescription):
         medicine_name = prescription.get("medicine_name")
@@ -81,8 +81,30 @@ class Pharmacy(Building):
                 f"Available Medicines: {self.available_medicines}\n"
                 f"Prescriptions List: {self.prescriptions_list}")
 class Ward(Building):
-    ...
-
+    def __init__(self, room_type, avilablitity=True, patient=None) -> None:
+        self.id=super().__init__("BLD/WRM")
+        valid_types = ["ICU", "general", "private"]
+        if room_type not in valid_types:
+            raise ValueError(f"Invalid room type. Must be one of: {valid_types}")
+        self.room_type = room_type
+        self.patient = patient
+        self.avilablitity = avilablitity
+    def assign_room(self, patient_name: Patient):
+        if self.avilablitity:
+            self.patient = patient_name.get_name()
+            self.avilablitity = False
+            print(f"Room {self.id} ({self.room_type}) assigned to {self.patient}.")
+        else:
+            print(f"Room {self.id} is already occupied by {self.patient}.")
+    def discharge_patient(self):
+        if not self.avilablitity:
+            print(f"Patient {self.patient} discharged from Room {self.id}.")
+            self.assigned_patient = None
+            self.availability = True
+        else:
+            print(f"Room {self.id} is already available.")
+    def check_availability(self):
+        return self.avilablitity
 
 # Testing department
 # doctor1 = Doctor("Galal", 18, "Male", "Eys")
@@ -105,3 +127,14 @@ class Ward(Building):
 #my_pharmacy.dispense_medication(prescription)
 #
 #print(my_pharmacy)
+#room1 = Ward( room_type="ICU")
+#
+#print(room1.check_availability()) 
+#pa1 = Patient("zod", 3, "Male")
+#room1.assign_room(pa1) 
+#
+#print(room1.check_availability()) 
+#
+#
+#room1.discharge_patient()  
+#
