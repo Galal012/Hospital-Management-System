@@ -45,7 +45,7 @@ class Department(Building):
 
 
 class Pharmacy(Building):
-    def __init__(self ,pharmacist, available_medicines = None , prescriptions_list = None) -> None:
+    def __init__(self ,pharmacist) -> None:
         self.available_medicines = dict()
         self.prescriptions_list = list()
         self.pharmacist = pharmacist
