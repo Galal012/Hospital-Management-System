@@ -1,6 +1,5 @@
 from datetime import datetime
 
-
 class ID_Generator:
     @staticmethod
     def generate_id(prefix, counter) -> str:

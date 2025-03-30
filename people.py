@@ -10,6 +10,7 @@ class Person:
         self._age: int = age
         self._gender: str = gender
         self._contact_info = dict()
+        self._security_info = dict()
         self._id: str = str()
         Person.__number_of_persons += 1
     
@@ -36,6 +37,8 @@ class Person:
         self._gender = gender
     def add_contact_info(self, key: str, value: str) -> None:
         self._contact_info[key] = value
+    def add_security_info(self, key: str, value: str) -> None:
+        self._security_info[key] = value
 
 class Patient(Person):
     __number_of_patients: int = 0
