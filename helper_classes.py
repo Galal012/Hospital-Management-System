@@ -1,6 +1,6 @@
 from datetime import datetime
 
-class ID_Generator:
+class helper_functions:
     @staticmethod
     def generate_id(prefix, counter) -> str:
         """
@@ -11,12 +11,67 @@ class ID_Generator:
 
         return f"{prefix}-{year}-{counter:04d}"
 
+
+    @staticmethod
+    def display_date_time():
+        date = f"Date: {str(datetime.now().date())}"
+        time = f"Time: {str(datetime.now().time())[0:8]}"
+
+        print(f"{date}{(75 - len(date) - len(time)) * " "}{time}")
+
+
+    @staticmethod
+    def print_error(error: str) -> None:
+        print(f"!! ERROR: {error} !!")
+
+
+    @staticmethod
+    def print_success_message(message: str) -> None:
+        print(f"\n##### {message} #####\n")
+
+
+    @staticmethod
+    def print_options(options: list) -> None:
+        print(40 * "-")
+        for i, option in enumerate(options):
+            item = f"{i + 1}. {option}"
+            print(" ---  ", end="")
+            print(item, end="")
+            print(f"{(40 - 6 - len(item) - 4) * " "}----")
+        print(40 * "-")
+
+
+    @staticmethod
+    def print_welcome_message(name: str) -> None:
+        message = f"{5 * " "}{4 * "#"}{4 * " "}Welcome Back, {name}{4 * " "}{4 * "#"}{5 * " "}"
+        print(len(message) * "-")
+        print(message)
+        print(len(message) * "-")
+
+
+    @staticmethod
+    def take_int(start: int, end: int, prefix: str) -> int:
+        try:
+            option = int(input(f"{prefix}: "))
+            while option < start or option > end:
+                helper_functions.print_error(f"Enter a Valid {prefix}")
+                option = int(input(f"{prefix}: "))
+        except ValueError:
+            helper_functions.print_error(f"Enter a Valid {prefix}")
+            return helper_functions.take_int(start, end, prefix)
+        else:
+            return option
+
+
+
+
+
 class Appointment():
     __number_of_appointments = 0
     __appointments = {}
     def __init__(self, patient, doctor, time, statues) -> None:
         Appointment.__number_of_appointments += 1
-        self._id = ID_Generator.generate_id("APP", Appointment.get_number_of_appointments()) 
+        self._id = helper_functions.generate_id("APP", Appointment.get_number_of_appointments())
         self._patient = patient
         self._doctor = doctor
         self._date = datetime.now()
@@ -44,7 +99,7 @@ class MedicalRecord():
     __number_of_records = 0
     def __init__(self, patient, doctor, diagnosis, prescribed_treatment, test_results) -> None:
         MedicalRecord.__number_of_records += 1
-        self._id = ID_Generator.generate_id("MDR", Appointment.get_number_of_records()) 
+        self._id = helper_functions.generate_id("MDR", Appointment.get_number_of_records())
         self._patient = patient
         self._doctor = doctor
         self._diagnosis = diagnosis
@@ -84,7 +139,7 @@ class Billing():
     __number_of_bills = 0
     def __init__(self, patient, treatment_cost, medicine_cost, total_amount, payment_status) -> None:
         Billing.__number_of_bills += 1
-        self._id = ID_Generator.generate_id("BIL", Appointment.get_number_of_bills()) 
+        self._id = helper_functions.generate_id("BIL", Appointment.get_number_of_bills())
         self._patient = patient
         self._treatment_cost = treatment_cost
         self._medicine_cost = medicine_cost
