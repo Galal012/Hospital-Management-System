@@ -1,5 +1,6 @@
 from typing import Dict, List
 import helper_classes as hc
+from helper_classes import MedicalRecord
 
 persons = dict()
 buildings = dict()
@@ -51,6 +52,7 @@ class Patient(Person):
         Patient.__number_of_patients += 1
         self._id: str = hc.helper_functions.generate_id("PAT", Patient.get_number_of_patients())
         self._diagnosis = str()
+        self._prescribed_treatment = str()
         self._assigned_doctor = str()
         self._medical_history = list()
 
@@ -61,25 +63,45 @@ class Patient(Person):
     def get_diagnosis(self) -> str:
         return self._diagnosis
 
-    def get_medical_history(self) -> List:
-        return self._medical_history
+    def get_prescribed_treatment(self) -> str:
+        return self._prescribed_treatment
+
+    def get_assigned_doctor(self) -> str:
+        return self._assigned_doctor
+
+    def view_medical_history(self) -> None:
+        header = f"|{"Name":^20}|{"Age":^5}|{"Gender":^8}|{"Doctor":^20}|{"Diagnosis":^15}|{"Treatment":^15}|{"Results":^11}|{"Date":^12}|{"Time":^10}|"
+        bar = f"={20 * "="}|{5 * "="}|{8 * "="}|{20 * "="}|{15 * "="}|{15 * "="}|{11 * "="}|{12 * "="}|{10 * "="}="
+        print(f"{bar}\n{header}\n{bar}")
+
+        if len(self._medical_history) == 0:
+            print(f"|{"NO PATIENTS YET!":^124}|\n{len(header) * "-"}")
+        else:
+            for record in self._medical_history:
+                print(record)
     
-    def book_appointment(self, doctor, date, time) -> None:
+    def book_appointment(self, doctor) -> None:
         self._assigned_doctor = doctor.get_id()
         ... # Waiting for appointment class
 
-    def get_patient_info(self) -> tuple[str, int, str, str]:
-        return self.get_name(), self.get_age(), self.get_id(), self.get_diagnosis()
+    def get_patient_info(self) -> tuple[str, int, str, str, str]:
+        return self.get_name(), self.get_age(), self.get_gender(), self.get_diagnosis(), self.get_prescribed_treatment()
 
     def set_diagnosis(self, diagnosis: str) -> None:
         self._diagnosis = diagnosis
 
+    def set_prescribed_treatment(self, prescribed_treatment: str) -> None:
+        self._prescribed_treatment = prescribed_treatment
+
     def set_assigned_doctor(self, doctor) -> None:
         self._assigned_doctor = doctor
 
+    def add_medical_record(self, record):
+        self._medical_history.append(record)
+
     def __str__(self):
-        output = f"|{self.get_name():^20}|{f"{self.get_age():03d}":^5}|{self.get_gender():^8}|{self.get_diagnosis():^15}|"
-        return f"{output}\n-{20*"-"}|{5*"-"}|{8*"-"}|{15*"-"}-"
+        output = f"|{self.get_name():^20}|{f"{self.get_age():03d}":^5}|{self.get_gender():^8}|"
+        return f"{output}\n-{20*"-"}|{5*"-"}|{8*"-"}-"
 
 class Doctor(Person):
     __number_of_doctors: int = 0
@@ -118,23 +140,75 @@ class Doctor(Person):
             print(3 * "\n", end="")
 
     def view_patients_list(self):
-        header = f"|{"Name":^20}|{"Age":^5}|{"Gender":^8}|{"Diagnosis":^15}|"
-        print(f"={20*"="}|{5*"="}|{8*"="}|{15*"="}=\n{header}\n={20*"="}|{5*"="}|{8*"="}|{15*"="}=")
+        header = f"|{"Name":^20}|{"Age":^5}|{"Gender":^8}|"
+        print(f"={20*"="}|{5*"="}|{8*"="}=\n{header}\n={20*"="}|{5*"="}|{8*"="}=")
 
         if len(self._patients_list) == 0:
-            print(f"|{"NO PATIENTS YET!":^51}|\n{len(header)*"-"}")
+            print(f"|{"NO PATIENTS YET!":^35}|\n{len(header)*"-"}")
         else:
             for patient in self._patients_list:
                 print(patient)
 
-    def diagnose_patient(self, patient):
-        ...
-    
-    def prescribe_medication(self, patient, medication):
-        return self.get_name(), patient.get_name(), medication
-    
-    def view_patient_records(self, patient):
-        ...
+    def diagnose_patient(self, patient_id: str) -> None:
+        for patient in self._patients_list:
+            if patient.get_id() == patient_id:
+                print()
+                diagnosis = input("Diagnosis: ")
+                patient.set_diagnosis(diagnosis)
+                hc.helper_functions.print_success_message("Patient Diagnosed Successfully")
+                print(3 * "\n", end="")
+                return
+
+        print()
+        hc.helper_functions.print_error("Can't Find This Patient")
+        print(3 * "\n", end="")
+
+    def prescribe_medication(self, patient_id: str):
+        for patient in self._patients_list:
+            if patient.get_id() == patient_id:
+                print()
+                treatment = input("Treatment: ")
+                patient.set_prescribed_treatment(treatment)
+                hc.helper_functions.print_success_message("Treatment Prescribed Successfully")
+                print(3 * "\n", end="")
+                return
+
+        print()
+        hc.helper_functions.print_error("Can't Find This Patient")
+        print(3 * "\n", end="")
+
+    def add_patient_record(self, patient_id: str):
+        for patient in self._patients_list:
+            if patient.get_id() == patient_id:
+                print()
+                test_results = input("Test Results: ")
+                record = MedicalRecord(
+                    patient,
+                    self,
+                    patient.get_diagnosis(),
+                    patient.get_prescribed_treatment(),
+                    test_results
+                )
+                patient.add_medical_record(record)
+                hc.helper_functions.print_success_message("Patient Record Added Successfully")
+                print(3 * "\n", end="")
+                return
+
+        print()
+        hc.helper_functions.print_error("Can't Find This Patient")
+        print(3 * "\n", end="")
+
+    def view_patient_records(self, patient_id: str):
+        for patient in self._patients_list:
+            if patient.get_id() == patient_id:
+                print()
+                patient.view_medical_history()
+                print(3 * "\n", end="")
+                return
+
+        print()
+        hc.helper_functions.print_error("Can't Find This Patient")
+        print(3 * "\n", end="")
 
 class Nurse(Person):
     __number_of_nurses: int = 0
@@ -228,15 +302,21 @@ class Administrator(Person):
 
 
 
-# # # iam testing braah
+# iam testing braah
+# doctor1 = Doctor("Jane Smith", 40, "Female", "Cardiology")
 # patient1 = Patient("Galal Mohamed ", 1, "Male")
 # patient1.set_diagnosis("Malaria")
+# patient1.set_prescribed_treatment("Panadol")
+# patient1.set_assigned_doctor(doctor1.get_name())
+# medical_record = MedicalRecord(patient1, doctor1, patient1.get_diagnosis(), patient1.get_prescribed_treatment(), "Success")
+# patient1.add_medical_record(medical_record)
+# patient1.add_medical_record(medical_record)
+# patient1.add_medical_record(medical_record)
+# patient1.view_medical_history()
 # print(patient1)
 # print(f"Patient ID: {patient1.get_id()}")
-# #
-# doctor1 = Doctor("Jane Smith", 40, "Female", "Cardiology")
+# doctor1.add_patient(patient1)
 # doctor1.view_patients_list()
 # print(f"Doctor ID: {doctor1.get_id()}")
-#
 # nurse1 = Nurse("Mark Johnson", 28, "Male", "Emergency")
 # print(f"Nurse ID: {nurse1.get_id()}")

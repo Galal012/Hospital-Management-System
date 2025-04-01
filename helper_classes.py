@@ -95,11 +95,11 @@ class Appointment():
     def reschedule_appointment(self, new_time) -> None:
         Appointment.__appointments[self._id[self._time]] = new_time
         
-class MedicalRecord():
+class MedicalRecord:
     __number_of_records = 0
     def __init__(self, patient, doctor, diagnosis, prescribed_treatment, test_results) -> None:
         MedicalRecord.__number_of_records += 1
-        self._id = helper_functions.generate_id("MDR", Appointment.get_number_of_records())
+        self._id = helper_functions.generate_id("MDR", MedicalRecord.get_number_of_records())
         self._patient = patient
         self._doctor = doctor
         self._diagnosis = diagnosis
@@ -133,6 +133,13 @@ class MedicalRecord():
         self._diagnosis = None
         self._prescribed_treatment = None
         self._test_results = None
+
+    def __str__(self):
+        date = f"{str(datetime.now().date())}"
+        time = f"{str(datetime.now().time())[0:8]}"
+
+        output = f"|{self._patient.get_name():^20}|{f"{self._patient.get_age():03d}":^5}|{self._patient.get_gender():^8}|{self._doctor.get_name():^20}|{self._diagnosis:^15}|{self._prescribed_treatment:^15}|{self._test_results:^11}|{date:^12}|{time:^10}|"
+        return f"{output}\n-{20 * "-"}|{5 * "-"}|{8 * "-"}|{20 * "-"}|{15 * "-"}|{15 * "-"}|{11 * "-"}|{12 * "-"}|{10 * "-"}-"
 
 
 class Billing():

@@ -61,10 +61,11 @@ def start_system() -> None:
                             "View Patients List",
                             "Diagnose Patient",
                             "Prescribe Medication",
-                            "View Patient records",
+                            "Add Patient Record",
+                            "View Patient Records",
                             "Log Out"
                         ])
-                        option = ss.pp.hc.helper_functions.take_int(1, 7, "Option")
+                        option = ss.pp.hc.helper_functions.take_int(1, 8, "Option")
                         print()
                         match option:
                             case 1:
@@ -98,6 +99,32 @@ def start_system() -> None:
                                 ss.current_user.view_patients_list()
                                 print(3 * "\n", end="")
                                 doctor_interface()
+
+                            case 4:
+                                patient_id = input("Patient ID: ")
+                                ss.current_user.diagnose_patient(patient_id)
+                                doctor_interface()
+
+                            case 5:
+                                patient_id = input("Patient ID: ")
+                                ss.current_user.prescribe_medication(patient_id)
+                                doctor_interface()
+
+                            case 6:
+                                patient_id = input("Patient ID: ")
+                                ss.current_user.add_patient_record(patient_id)
+                                doctor_interface()
+
+                            case 7:
+                                patient_id = input("Patient ID: ")
+                                ss.current_user.view_patient_records(patient_id)
+                                doctor_interface()
+
+                            case 8:
+                                ss.current_user = None
+                                ss.pp.hc.helper_functions.print_success_message("Successful Log Out")
+                                print(3 * "\n", end="")
+                                start_system()
 
                     doctor_interface()
 
