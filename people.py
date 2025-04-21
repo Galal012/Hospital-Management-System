@@ -1,3 +1,6 @@
+import time as tm
+import curses
+from curses import wrapper
 from typing import Dict, List
 import helper_classes as hc
 from helper_classes import MedicalRecord
@@ -70,15 +73,36 @@ class Patient(Person):
         return self._assigned_doctor
 
     def view_medical_history(self) -> None:
-        header = f"|{"Name":^20}|{"Age":^5}|{"Gender":^8}|{"Doctor":^20}|{"Diagnosis":^15}|{"Treatment":^15}|{"Results":^11}|{"Date":^12}|{"Time":^10}|"
-        bar = f"={20 * "="}|{5 * "="}|{8 * "="}|{20 * "="}|{15 * "="}|{15 * "="}|{11 * "="}|{12 * "="}|{10 * "="}="
-        print(f"{bar}\n{header}\n{bar}")
+        hc.helper_functions.display_page_heading("Patient Records Page")
 
-        if len(self._medical_history) == 0:
-            print(f"|{"NO PATIENTS YET!":^124}|\n{len(header) * "-"}")
-        else:
+        def run(stdscr):
+            headings = ["Name", "Age", "Gender", "Doctor", "Diagnosis", "Treatment", "Results", "Date", "Time"]
+            cols_width = [30, 6, 8, 30, 20, 20, 11, 12, 10]
+            data = list()
+
             for record in self._medical_history:
-                print(record)
+                data.append([
+                    record.get_patient().get_name(),
+                    record.get_patient().get_age(),
+                    record.get_patient().get_gender(),
+                    record.get_doctor().get_name(),
+                    record.get_diagnosis(),
+                    record.get_prescribed_treatment(),
+                    record.get_test_results(),
+                    record.get_date(),
+                    record.get_time()
+                ])
+            hc.helper_functions.display_table(
+                stdscr,
+                6,
+                "Patient Medical Records:",
+                headings,
+                data,
+                cols_width
+            )
+
+        wrapper(run)
+
     
     def book_appointment(self, doctor) -> None:
         self._assigned_doctor = doctor.get_id()
@@ -99,10 +123,6 @@ class Patient(Person):
     def add_medical_record(self, record):
         self._medical_history.append(record)
 
-    def __str__(self):
-        output = f"|{self.get_name():^20}|{f"{self.get_age():03d}":^5}|{self.get_gender():^8}|"
-        return f"{output}\n-{20*"-"}|{5*"-"}|{8*"-"}-"
-
 class Doctor(Person):
     __number_of_doctors: int = 0
     def __init__(self, name: str, age: int, gender: str, specialization: str) -> None:
@@ -118,10 +138,11 @@ class Doctor(Person):
         return Doctor.__number_of_doctors
 
     def add_patient(self, patient) -> None:
-        self._patients_list.append(patient)
-        patient.set_assigned_doctor(self.get_name())
+        if patient not in self._patients_list:
+            self._patients_list.append(patient)
+            patient.set_assigned_doctor(self.get_name())
 
-    def remove_patient(self, patient_id) -> None:
+    def remove_patient(self, win, patient_id) -> None:
         idx = -1
 
         for i, patient in enumerate(self._patients_list):
@@ -130,85 +151,150 @@ class Doctor(Person):
                 break
 
         if idx == -1:
-            print()
-            hc.helper_functions.print_error("Can't Find This Patient")
-            print(3 * "\n", end="")
+            hc.helper_functions.display_error(win, "Can't Find This Patient")
+            tm.sleep(3)
         else:
             self._patients_list[idx].set_assigned_doctor(str())
             del self._patients_list[idx]
-            hc.helper_functions.print_success_message("Patient Removed Successfully")
-            print(3 * "\n", end="")
+            hc.helper_functions.display_success_message(win, "Patient Removed Successfully")
+            tm.sleep(3)
 
     def view_patients_list(self):
-        header = f"|{"Name":^20}|{"Age":^5}|{"Gender":^8}|"
-        print(f"={20*"="}|{5*"="}|{8*"="}=\n{header}\n={20*"="}|{5*"="}|{8*"="}=")
-
-        if len(self._patients_list) == 0:
-            print(f"|{"NO PATIENTS YET!":^35}|\n{len(header)*"-"}")
-        else:
+        hc.helper_functions.display_page_heading("Patients List Page")
+        def run(stdscr):
+            headings = ["Name", "Age", "Gender"]
+            cols_width = [30, 6, 8]
+            data = list()
             for patient in self._patients_list:
-                print(patient)
+                data.append([patient.get_name(), patient.get_age(), patient.get_gender()])
+            hc.helper_functions.display_table(
+                stdscr,
+                6,
+                "Patients List:",
+                headings,
+                data,
+                cols_width
+            )
 
-    def diagnose_patient(self, patient_id: str) -> None:
+        wrapper(run)
+
+    def diagnose_patient(self, win, patient_id: str) -> None:
         for patient in self._patients_list:
             if patient.get_id() == patient_id:
-                print()
-                diagnosis = input("Diagnosis: ")
-                patient.set_diagnosis(diagnosis)
-                hc.helper_functions.print_success_message("Patient Diagnosed Successfully")
-                print(3 * "\n", end="")
+                def run(stdscr):
+                    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+                    green_and_black = curses.color_pair(3)
+
+                    rows, columns = stdscr.getmaxyx()
+
+                    win.addstr(5, 0, "Enter Diagnosis:", curses.A_BOLD | green_and_black)
+                    win.addstr(6, 0, f"{len("Enter Diagnosis:") * "-"}", curses.A_BOLD | green_and_black)
+
+                    curses.curs_set(1)
+
+                    label = "Diagnosis:"
+                    win.addstr(8, 5, label, curses.A_BOLD)
+                    stdscr.move(rows // 4 + 7, columns // 4 + len(label) + 5)
+                    win.move(8, len(label) + 6)
+                    win.refresh()
+
+                    diagnosis = hc.helper_functions.take_str(stdscr, win)
+                    patient.set_diagnosis(diagnosis)
+
+                    hc.helper_functions.display_success_message(win, "Patient Diagnosed Successfully")
+                    tm.sleep(3)
+
+                wrapper(run)
                 return
 
-        print()
-        hc.helper_functions.print_error("Can't Find This Patient")
-        print(3 * "\n", end="")
+        hc.helper_functions.display_error(win, "Can't Find This Patient")
+        tm.sleep(3)
 
-    def prescribe_medication(self, patient_id: str):
+    def prescribe_medication(self, win, patient_id: str):
         for patient in self._patients_list:
             if patient.get_id() == patient_id:
-                print()
-                treatment = input("Treatment: ")
-                patient.set_prescribed_treatment(treatment)
-                hc.helper_functions.print_success_message("Treatment Prescribed Successfully")
-                print(3 * "\n", end="")
+                def run(stdscr):
+                    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+                    green_and_black = curses.color_pair(3)
+
+                    rows, columns = stdscr.getmaxyx()
+
+                    win.addstr(5, 0, "Enter Treatment:", curses.A_BOLD | green_and_black)
+                    win.addstr(6, 0, f"{len("Enter Treatment:") * "-"}", curses.A_BOLD | green_and_black)
+
+                    curses.curs_set(1)
+
+                    label = "Treatment:"
+                    win.addstr(8, 5, label, curses.A_BOLD)
+                    stdscr.move(rows // 4 + 7, columns // 4 + len(label) + 5)
+                    win.move(8, len(label) + 6)
+                    win.refresh()
+
+                    treatment = hc.helper_functions.take_str(stdscr, win)
+                    patient.set_prescribed_treatment(treatment)
+
+                    hc.helper_functions.display_success_message(win, "Treatment Prescribed Successfully")
+                    tm.sleep(3)
+
+                wrapper(run)
                 return
 
-        print()
-        hc.helper_functions.print_error("Can't Find This Patient")
-        print(3 * "\n", end="")
+        hc.helper_functions.display_error(win, "Can't Find This Patient")
+        tm.sleep(3)
 
-    def add_patient_record(self, patient_id: str):
+
+    def add_patient_record(self, win, patient_id: str):
         for patient in self._patients_list:
             if patient.get_id() == patient_id:
-                print()
-                test_results = input("Test Results: ")
-                record = MedicalRecord(
-                    patient,
-                    self,
-                    patient.get_diagnosis(),
-                    patient.get_prescribed_treatment(),
-                    test_results
-                )
-                patient.add_medical_record(record)
-                hc.helper_functions.print_success_message("Patient Record Added Successfully")
-                print(3 * "\n", end="")
+                def run(stdscr):
+                    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+                    green_and_black = curses.color_pair(3)
+
+                    rows, columns = stdscr.getmaxyx()
+
+                    win.addstr(5, 0, "Enter Test Results:", curses.A_BOLD | green_and_black)
+                    win.addstr(6, 0, f"{len("Enter Test Results:") * "-"}", curses.A_BOLD | green_and_black)
+
+                    curses.curs_set(1)
+
+                    label = "Test Results:"
+                    win.addstr(8, 5, label, curses.A_BOLD)
+                    stdscr.move(rows // 4 + 7, columns // 4 + len(label) + 5)
+                    win.move(8, len(label) + 6)
+                    win.refresh()
+
+                    test_results = hc.helper_functions.take_str(stdscr, win)
+                    date = f"{str(hc.datetime.now().date())}"
+                    time = f"{str(hc.datetime.now().time())[0:8]}"
+                    record = MedicalRecord(
+                        patient,
+                        self,
+                        patient.get_diagnosis(),
+                        patient.get_prescribed_treatment(),
+                        test_results,
+                        date,
+                        time
+                    )
+                    patient.add_medical_record(record)
+
+                    hc.helper_functions.display_success_message(win, "Patient Record Added Successfully")
+                    tm.sleep(3)
+
+                wrapper(run)
                 return
 
-        print()
-        hc.helper_functions.print_error("Can't Find This Patient")
-        print(3 * "\n", end="")
+        hc.helper_functions.display_error(win, "Can't Find This Patient")
+        tm.sleep(3)
 
-    def view_patient_records(self, patient_id: str):
+
+    def view_patient_records(self, win, patient_id: str):
         for patient in self._patients_list:
             if patient.get_id() == patient_id:
-                print()
                 patient.view_medical_history()
-                print(3 * "\n", end="")
                 return
 
-        print()
-        hc.helper_functions.print_error("Can't Find This Patient")
-        print(3 * "\n", end="")
+        hc.helper_functions.display_error(win, "Can't Find This Patient")
+        tm.sleep(3)
 
 class Nurse(Person):
     __number_of_nurses: int = 0
@@ -251,34 +337,17 @@ class Administrator(Person):
         return Administrator.__number_of_administrator
 
     @staticmethod
-    def add_doctor() -> None:
-        name = input("Full Name: ")
-        age = hc.helper_functions.take_int(1, 120, "Age")
-        gender = input("Gender(Male/Female): ")
-        specialization = input("Specialization: ")
-        email = input("Email: ")
-        password = input("Password: ")
-        phone_number = input("Phone Number: ")
-
-        doctor = Doctor(name, age, gender, specialization)
-        doctor.add_contact_info("email", email)
-        doctor.add_contact_info("phone_number", phone_number)
-        doctor.add_security_info("id", doctor.get_id())
-        doctor.add_security_info("email", email)
-        doctor.add_security_info("password", password)
+    def add_doctor(doctor) -> None:
         if "doctors" not in persons:
             persons["doctors"] = list()
         persons["doctors"].append(doctor)
-        hc.helper_functions.print_success_message("Doctor Added Successfully")
-        print(3 * "\n", end="")
 
     @staticmethod
-    def remove_doctor(doctor_id) -> None:
+    def remove_doctor(win, doctor_id) -> None:
         idx = -1
         if "doctors" not in persons:
-            print()
-            hc.helper_functions.print_error("Can't Find This Doctor")
-            print(3 * "\n", end="")
+            hc.helper_functions.display_error(win, "Can't Find This Doctor")
+            tm.sleep(3)
             return
 
         for i, doctor in enumerate(persons["doctors"]):
@@ -287,17 +356,19 @@ class Administrator(Person):
                 break
 
         if idx == -1:
-            print()
-            hc.helper_functions.print_error("Can't Find This Doctor")
-            print(3 * "\n", end="")
+            hc.helper_functions.display_error(win, "Can't Find This Doctor")
         else:
             del persons["doctors"][idx]
-            hc.helper_functions.print_success_message("Doctor Removed Successfully")
-            print(3 * "\n", end="")
+            hc.helper_functions.display_success_message(win, "Doctor Removed Successfully")
 
-    def manage_hospital_operations(self) -> None:
-        print(f"{self.get_name()} is managing hospital operations.")
-        print(3 * "\n", end="")
+        tm.sleep(3)
+
+    def manage_hospital_operations(self, win) -> None:
+        hc.helper_functions.display_success_message(
+            win,
+            f"{self.get_name()} is managing hospital operations."
+        )
+        tm.sleep(3)
 
 
 
@@ -320,3 +391,20 @@ class Administrator(Person):
 # print(f"Doctor ID: {doctor1.get_id()}")
 # nurse1 = Nurse("Mark Johnson", 28, "Male", "Emergency")
 # print(f"Nurse ID: {nurse1.get_id()}")
+# admin = Administrator("Galal", 18, "male")
+# admin.add_security_info("email", "galal@gmail.com")
+# admin.add_security_info("password", "12345678")
+# persons["admins"] = list()
+# persons["admins"].append(admin)
+#
+# doctor = Doctor("Naglaa", 22, "female", "Eyes")
+# doctor.add_security_info("email", "naglaa@gmail.com")
+# doctor.add_security_info("password", "12345678")
+# persons["doctors"] = list()
+# persons["doctors"].append(doctor)
+#
+# patient1 = Patient("mohamed", 15, "male")
+# patient1.add_security_info("email", "mohamed@gamil.com")
+# patient1.add_security_info("password", "12345678")
+# persons["patients"] = list()
+# persons["patients"].append(patient1)

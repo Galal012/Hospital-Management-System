@@ -1,16 +1,29 @@
+import curses
+from curses import wrapper
+
 import system as ss
 
 def start_system() -> None:
-    ss.HospitalManagementSystem.display_starting_page()
+    wrapper(ss.HospitalManagementSystem.display_starting_page)
 
-    option = ss.pp.hc.helper_functions.take_int(1, 3, "Option")
-    match option:
+    option1 = ss.pp.hc.helper_functions.display_get_options([
+        "Log In",
+        "Register",
+        "Exit"
+    ], "Select Option:")
+    match option1:
         case 1:
-            print(2 * "\n", end="")
-            ss.HospitalManagementSystem.display_login_page()
-            option = ss.pp.hc.helper_functions.take_int(1, 5, "Option")
-            print()
-            match option:
+            ss.pp.hc.helper_functions.display_page_heading("*** Log In Page ***")
+
+            option2 = ss.pp.hc.helper_functions.display_get_options([
+                "Admin",
+                "Doctor",
+                "Nurse",
+                "Patient",
+                "Go Back"
+            ], "Log In As:")
+
+            match option2:
                 case 1:
                     def admin_interface() -> None:
                         if ss.current_user is None:
@@ -18,32 +31,42 @@ def start_system() -> None:
                             if not is_logged:
                                 start_system()
 
-                        ss.HospitalManagementSystem.display_user_interface([
+                        ss.pp.hc.helper_functions.display_page_heading("*** Admin Page ***")
+                        option3 = ss.pp.hc.helper_functions.display_get_options([
                             "Add Doctor",
                             "Remove Doctor",
                             "Manage Hospital Operations",
                             "Log Out"
-                        ])
-                        option = ss.pp.hc.helper_functions.take_int(1, 4, "Option")
-                        print()
-                        match option:
+                        ], f"####  Welcome Back, {ss.current_user.get_name()}  ####")
+
+                        match option3:
                             case 1:
-                                ss.current_user.add_doctor()
+                                ss.pp.hc.helper_functions.display_page_heading("*** Registration Page ***")
+                                ss.current_user.add_doctor(ss.HospitalManagementSystem.register_user("doctor"))
                                 admin_interface()
 
                             case 2:
-                                doctor_id = input("Doctor ID: ")
-                                ss.current_user.remove_doctor(doctor_id)
+                                ss.pp.hc.helper_functions.display_page_heading("*** Remove Doctor Page ***")
+                                def run(stdscr):
+                                    win, doctor_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Doctor")
+                                    ss.current_user.remove_doctor(win, doctor_id)
+
+                                wrapper(run)
                                 admin_interface()
 
                             case 3:
-                                ss.current_user.manage_hospital_operations()
+                                ss.pp.hc.helper_functions.display_page_heading("*** Hospital Operations page ***")
+
+                                def run(stdscr):
+                                    rows, columns = stdscr.getmaxyx()
+                                    win = curses.newwin(1, columns // 2, rows // 4 - 1, columns // 4 - 1)
+                                    ss.current_user.manage_hospital_operations(win)
+
+                                wrapper(run)
                                 admin_interface()
 
                             case 4:
                                 ss.current_user = None
-                                ss.pp.hc.helper_functions.print_success_message("Successful Log Out")
-                                print(3 * "\n", end="")
                                 start_system()
 
                     admin_interface()
@@ -55,7 +78,8 @@ def start_system() -> None:
                             if not is_logged:
                                 start_system()
 
-                        ss.HospitalManagementSystem.display_user_interface([
+                        ss.pp.hc.helper_functions.display_page_heading("*** Doctor Page ***")
+                        option3 = ss.pp.hc.helper_functions.display_get_options([
                             "Add Patient",
                             "Remove Patient",
                             "View Patients List",
@@ -64,116 +88,148 @@ def start_system() -> None:
                             "Add Patient Record",
                             "View Patient Records",
                             "Log Out"
-                        ])
-                        option = ss.pp.hc.helper_functions.take_int(1, 8, "Option")
-                        print()
-                        match option:
-                            case 1:
-                                patient_id = input("Patient ID: ")
-                                if "patients" not in ss.pp.persons:
-                                    print()
-                                    ss.pp.hc.helper_functions.print_error("Can't Find This Patient")
-                                    print(3 * "\n", end="")
-                                    doctor_interface()
-                                    return
+                        ], f"####  Welcome Back, {ss.current_user.get_name()}  ####")
 
-                                for patient in ss.pp.persons["patients"]:
-                                    if patient.get_id() == patient_id:
-                                        ss.current_user.add_patient(patient)
-                                        ss.pp.hc.helper_functions.print_success_message("Patient Added Successfully")
-                                        print(3 * "\n", end="")
+                        match option3:
+                            case 1:
+                                ss.pp.hc.helper_functions.display_page_heading("*** Add Patient Page ***")
+                                def run(stdscr):
+                                    win, patient_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Patient")
+
+                                    if "patients" not in ss.pp.persons:
+                                        ss.pp.hc.helper_functions.display_error(win, "Can't Find This Patient")
+                                        ss.tm.sleep(3)
                                         doctor_interface()
                                         return
 
-                                print()
-                                ss.pp.hc.helper_functions.print_error("Can't Find This Patient")
-                                print(3 * "\n", end="")
-                                doctor_interface()
+                                    for patient in ss.pp.persons["patients"]:
+                                        if patient.get_id() == patient_id:
+                                            ss.current_user.add_patient(patient)
+                                            ss.pp.hc.helper_functions.display_success_message(
+                                                win,
+                                                "Patient Added Successfully"
+                                            )
+                                            ss.tm.sleep(3)
+                                            doctor_interface()
+                                            return
+
+                                    ss.pp.hc.helper_functions.display_error(win, "Can't Find This Patient")
+                                    ss.tm.sleep(3)
+                                    doctor_interface()
+
+                                wrapper(run)
 
                             case 2:
-                                patient_id = input("Patient ID: ")
-                                ss.current_user.remove_patient(patient_id)
-                                doctor_interface()
+                                ss.pp.hc.helper_functions.display_page_heading("*** Remove Patient Page ***")
+
+                                def run(stdscr):
+                                    win, patient_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Patient")
+                                    ss.current_user.remove_patient(win, patient_id)
+                                    doctor_interface()
+
+                                wrapper(run)
 
                             case 3:
                                 ss.current_user.view_patients_list()
-                                print(3 * "\n", end="")
                                 doctor_interface()
 
                             case 4:
-                                patient_id = input("Patient ID: ")
-                                ss.current_user.diagnose_patient(patient_id)
-                                doctor_interface()
+                                ss.pp.hc.helper_functions.display_page_heading("*** Diagnose Patient Page ***")
+
+                                def run(stdscr):
+                                    win, patient_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Patient")
+                                    ss.current_user.diagnose_patient(win, patient_id)
+                                    doctor_interface()
+
+                                wrapper(run)
 
                             case 5:
-                                patient_id = input("Patient ID: ")
-                                ss.current_user.prescribe_medication(patient_id)
-                                doctor_interface()
+                                ss.pp.hc.helper_functions.display_page_heading("*** Prescribe Medication Page ***")
+
+                                def run(stdscr):
+                                    win, patient_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Patient")
+                                    ss.current_user.prescribe_medication(win, patient_id)
+                                    doctor_interface()
+
+                                wrapper(run)
 
                             case 6:
-                                patient_id = input("Patient ID: ")
-                                ss.current_user.add_patient_record(patient_id)
-                                doctor_interface()
+                                ss.pp.hc.helper_functions.display_page_heading("*** Add Patient Record Page ***")
+
+                                def run(stdscr):
+                                    win, patient_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Patient")
+                                    ss.current_user.add_patient_record(win, patient_id)
+                                    doctor_interface()
+
+                                wrapper(run)
 
                             case 7:
-                                patient_id = input("Patient ID: ")
-                                ss.current_user.view_patient_records(patient_id)
-                                doctor_interface()
+                                ss.pp.hc.helper_functions.display_page_heading("*** Patient Records Page ***")
+
+                                def run(stdscr):
+                                    win, patient_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Patient")
+                                    ss.current_user.view_patient_records(win, patient_id)
+                                    doctor_interface()
+
+                                wrapper(run)
 
                             case 8:
                                 ss.current_user = None
-                                ss.pp.hc.helper_functions.print_success_message("Successful Log Out")
-                                print(3 * "\n", end="")
                                 start_system()
 
                     doctor_interface()
+
+                case _:
+                    start_system()
 
 
 
 
         case 2:
-            print(2 * "\n", end="")
-            ss.HospitalManagementSystem.display_registration_page()
-            option = ss.pp.hc.helper_functions.take_int(1, 5, "Option")
-            print()
-            match option:
+            ss.pp.hc.helper_functions.display_page_heading("*** Registration Page ***")
+
+            option2 = ss.pp.hc.helper_functions.display_get_options([
+                "Admin",
+                "Doctor",
+                "Nurse",
+                "Patient",
+                "Go Back"
+            ], "Register As:")
+
+            match option2:
                 case 1:
-                    admin = ss.HospitalManagementSystem.register_admin()
+                    ss.pp.hc.helper_functions.display_page_heading("*** Admin Registration Page ***")
+                    admin = ss.HospitalManagementSystem.register_user("admin")
                     if "admins" not in ss.pp.persons:
                         ss.pp.persons["admins"] = list()
                     ss.pp.persons["admins"].append(admin)
-                    ss.pp.hc.helper_functions.print_success_message("Admin Registered Successfully")
-                    print(3*"\n", end="")
 
                     start_system()
 
                 case 2:
-                    doctor = ss.HospitalManagementSystem.register_doctor()
+                    ss.pp.hc.helper_functions.display_page_heading("*** Doctor Registration Page ***")
+                    doctor = ss.HospitalManagementSystem.register_user("doctor")
                     if "doctors" not in ss.pp.persons:
                         ss.pp.persons["doctors"] = list()
                     ss.pp.persons["doctors"].append(doctor)
-                    ss.pp.hc.helper_functions.print_success_message("Doctor Registered Successfully")
-                    print(3*"\n", end="")
 
                     start_system()
 
                 case 3:
-                    nurse = ss.HospitalManagementSystem.register_nurse()
+                    ss.pp.hc.helper_functions.display_page_heading("*** Nurse Registration Page ***")
+                    nurse = ss.HospitalManagementSystem.register_user("nurse")
                     if "nurses" not in ss.pp.persons:
                         ss.pp.persons["nurses"] = list()
                     ss.pp.persons["nurses"].append(nurse)
-                    ss.pp.hc.helper_functions.print_success_message("Nurse Registered Successfully")
-                    print(3 * "\n", end="")
 
                     start_system()
 
                 case 4:
-                    patient = ss.HospitalManagementSystem.register_patient()
+                    ss.pp.hc.helper_functions.display_page_heading("*** Patient Registration Page ***")
+                    patient = ss.HospitalManagementSystem.register_user("patient")
                     if "patients" not in ss.pp.persons:
                         ss.pp.persons["patients"] = list()
                     ss.pp.persons["patients"].append(patient)
-                    ss.pp.hc.helper_functions.print_success_message("Patient Registered Successfully")
-                    print(3 * "\n", end="")
 
                     start_system()
 
