@@ -52,7 +52,7 @@ class helper_functions:
             num_spaces = (columns - len(message)) // 2
 
             stdscr.addstr(0, 0, columns * "=", blue_and_black)
-            stdscr.addstr(1, 0, f"{num_spaces * " "}{message}{(columns - num_spaces) * " "}", blue_and_black)
+            stdscr.addstr(1, 0, f"{num_spaces * " "}{message}", blue_and_black)
             stdscr.addstr(2, 0, columns * "=", blue_and_black)
 
             stdscr.refresh()
@@ -78,14 +78,11 @@ class helper_functions:
             def display_options():
                 for i in range(len(options)):
                     win.addstr(2 + i, 5, options[i])
-            display_options()
-            win.refresh()
 
             option = 0
             while True:
                 display_options()
-                if 0 <= option < len(options):
-                    win.addstr(2 + option, 5, options[option], curses.A_REVERSE)
+                win.addstr(2 + option, 5, options[option], curses.A_REVERSE)
                 win.refresh()
 
                 key = stdscr.getkey()
@@ -114,7 +111,7 @@ class helper_functions:
             try:
                 char = stdscr.getkey()
 
-                if char in ("KEY_BACKSPACE", "\b", "\x7f"):
+                if char == "\b":
                     if len(result) > 0:
                         y, x = win.getyx()
                         sy, sx = win.getbegyx()
