@@ -190,7 +190,7 @@ class helper_functions:
             temp += cols_width[i]
 
         if len(data) == 0:
-            message = "NO PATIENTS YET!"
+            message = "NO Data YET!"
             stdscr.addstr(yb + 3, xb + (width - len(message)) // 2, message)
 
         else:

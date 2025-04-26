@@ -37,7 +37,7 @@ def start_system() -> None:
                             "Remove Doctor",
                             "Manage Hospital Operations",
                             "Log Out"
-                        ], f"####  Welcome Back, {ss.current_user.get_name()}  ####")
+                        ], f"####  Welcome Back, Mr. {ss.current_user.get_name()}  ####")
 
                         match option3:
                             case 1:
@@ -78,6 +78,9 @@ def start_system() -> None:
                             if not is_logged:
                                 start_system()
 
+                        title = "Mr. "
+                        if ss.current_user.get_gender().lower() == "female":
+                            title = "Mrs. "
                         ss.pp.hc.helper_functions.display_page_heading("*** Doctor Page ***")
                         option3 = ss.pp.hc.helper_functions.display_get_options([
                             "Add Patient",
@@ -88,7 +91,7 @@ def start_system() -> None:
                             "Add Patient Record",
                             "View Patient Records",
                             "Log Out"
-                        ], f"####  Welcome Back, {ss.current_user.get_name()}  ####")
+                        ], f"####  Welcome Back, {title}{ss.current_user.get_name()}  ####")
 
                         match option3:
                             case 1:
@@ -178,6 +181,36 @@ def start_system() -> None:
                                 start_system()
 
                     doctor_interface()
+
+                case 4:
+                    def patient_interface() -> None:
+                        if ss.current_user is None:
+                            is_logged = ss.HospitalManagementSystem.login_user("patients")
+                            if not is_logged:
+                                start_system()
+
+                        title = "Mr. "
+                        if ss.current_user.get_gender().lower() == "female":
+                            title = "Mrs. "
+                        ss.pp.hc.helper_functions.display_page_heading("*** Patient Page ***")
+                        option3 = ss.pp.hc.helper_functions.display_get_options([
+                            "Book Appointment",
+                            "View Medical History",
+                            "Display Patient Information",
+                            "Log Out"
+                        ], f"####  Welcome Back, {title}{ss.current_user.get_name()}  ####")
+
+                        match option3:
+                            case 2:
+                                ss.pp.hc.helper_functions.display_page_heading("*** Patient Records Page ***")
+                                ss.current_user.view_medical_history()
+                                patient_interface()
+
+                            case 4:
+                                ss.current_user = None
+                                start_system()
+
+                    patient_interface()
 
                 case _:
                     start_system()
