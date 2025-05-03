@@ -1,13 +1,23 @@
 import time as tm
 import curses
 from curses import wrapper
-
-from email_validator import validate_email, EmailNotValidError
+import re
 
 import people as pp
 
 current_user = None
 
+class EmailNotValidError(Exception):
+    """Custom exception for invalid email addresses."""
+    pass
+
+def validate_email(email):
+    regex = r"^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+    if re.match(regex, email) == None:
+        raise EmailNotValidError
+    else:
+        return True
+    
 
 class HospitalManagementSystem:
     @staticmethod

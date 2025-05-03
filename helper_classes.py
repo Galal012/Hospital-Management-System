@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from sqlfunctions import *
 import curses
 from curses import wrapper
 from curses.textpad import rectangle
@@ -213,34 +213,49 @@ class helper_functions:
         stdscr.getch()
 
 
-class Appointment():
+class Appointment:
     __number_of_appointments = 0
-    __appointments = {}
-    def __init__(self, patient, doctor, time, statues) -> None:
+    def __init__(self, patient, doctor, date_time, status="scheduled"):
+        self.appointment_id = helper_functions.generate_id("APP", Appointment.__number_of_appointments)
+        self.patient = patient
+        self.doctor = doctor
+        self.date_time = date_time
+        self.status = status
+        self._persist()
         Appointment.__number_of_appointments += 1
-        self._id = helper_functions.generate_id("APP", Appointment.get_number_of_appointments())
-        self._patient = patient
-        self._doctor = doctor
-        self._date = datetime.now()
-        self._time = time
-        self._statues = statues
-        self._data = {'patient':self._patient, 'doctor':self._doctor, 'time':self._time}
+
+    def _persist(self):
+        DBHandler.execute_query('''
+            INSERT INTO Appointment (app_id, patient_id, doctor_id, date, time, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            self.appointment_id,
+            DBHandler.get_db_id('Patient', self.patient.get_id()),
+            DBHandler.get_db_id('Doctor', self.doctor.get_id()),
+            self.date_time.date().isoformat(),
+            self.date_time.time().strftime("%H:%M"),
+            self.status
+        ))
+
+    def cancel(self):
+        self.status = "cancelled"
+        DBHandler.execute_query('''
+            UPDATE Appointment SET status = ? WHERE app_id = ?
+        ''', (self.status, self.appointment_id))
+
+    def reschedule(self, new_date_time):
+        self.date_time = new_date_time
+        DBHandler.execute_query('''
+            UPDATE Appointment SET date = ?, time = ? WHERE app_id = ?
+        ''', (
+            new_date_time.date().isoformat(),
+            new_date_time.time().strftime("%H:%M"),
+            self.appointment_id
+        ))    
     @staticmethod
     def get_number_of_appointments() -> int:
         return Appointment.__number_of_appointments
-    @staticmethod
-    def schedule_appointment(self) -> None:
-        Appointment.__appointments.update({self._id: self._data})
-    @staticmethod
-    def cancel_appointment(self) -> None:
-        del Appointment.__appointments[self._id]
-        """
-        Appointment.__number_of_appointments -= 1
-        this cause a problem with the ids because now multiple appointments can have the same id
-        """
-    @staticmethod
-    def reschedule_appointment(self, new_time) -> None:
-        Appointment.__appointments[self._id[self._time]] = new_time
+        
         
 class MedicalRecord:
     __number_of_records = 0
@@ -311,35 +326,54 @@ class MedicalRecord:
         self._time = None
 
 
-class Billing():
+class Billing:
     __number_of_bills = 0
-    def __init__(self, patient, treatment_cost, medicine_cost, total_amount, payment_status) -> None:
+    def __init__(self, patient, treatment_cost=0, medicine_cost=0):
+        self.bill_id = helper_functions.generate_id("BIL", Billing.__number_of_bills)
+        self.patient = patient
+        self.treatment_cost = treatment_cost
+        self.medicine_cost = medicine_cost
+        self.payment_status = "unpaid"
+        self._persist()
         Billing.__number_of_bills += 1
-        self._id = helper_functions.generate_id("BIL", Appointment.get_number_of_bills())
-        self._patient = patient
-        self._treatment_cost = treatment_cost
-        self._medicine_cost = medicine_cost
-        self._total_amount = total_amount
-        self._payment_status = payment_status
-        self._data = {
-            "bill_id": self._id,
-            "patient": self._patient,
-            "treatment_cost": self._treatment_cost,
-            "medicine_cost": self._medicine_cost,
-            "total_amount": self._total_amount,
-            "payment_status": self._payment_status
-        }
     @staticmethod
     def get_number_of_bills() -> int:
         return Billing.__number_of_bills
-    def generate_bill(self) -> float:
-        self._total_amount = self._treatment_cost + self._medicine_cost
-        return self._total_amount
+    
+    def _persist(self):
+        DBHandler.execute_query('''
+            INSERT INTO Bill (app_id, patient_id, treatment_cost, medicine_cost, payment_status)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (
+            self.bill_id,
+            DBHandler.get_db_id('Patient', self.patient.get_id()),
+            self.treatment_cost,
+            self.medicine_cost,
+            self.payment_status
+        ))
+
+    def generate_bill(self):
+        records = DBHandler.fetch_all('''
+            SELECT diagnosis, prescribed_treatment 
+            FROM MedicalRecord WHERE patient_id = ?
+        ''', (DBHandler.get_db_id('Patient', self.patient.get_id()),))
+        
+        self.treatment_cost = len(records) * 100  
+        self._update()
+
     def process_payment(self, amount):
-        if amount >= self._total_amount:
-            self._payment_status = "Paid"
-            return "Payment successful"
-        else:
-            return "Insufficient payment"
-    def view_bill_details(self):
-        return self._data
+        if amount >= self.total_amount:
+            self.payment_status = "paid"
+            self._update()
+            return True
+        return False
+
+    def _update(self):
+        DBHandler.execute_query('''
+            UPDATE Bill 
+            SET treatment_cost = ?, medicine_cost = ?, payment_status = ?
+            WHERE app_id = ?
+        ''', (self.treatment_cost, self.medicine_cost, self.payment_status, self.bill_id))
+
+    def total_amount(self):
+        return self.treatment_cost + self.medicine_cost

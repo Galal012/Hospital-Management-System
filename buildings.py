@@ -1,13 +1,15 @@
 from typing import Dict, List
-from helper_classes import ID_Generator
-from people import Doctor, Patient
+from helper_classes import *
+from people import *
+from datetime import datetime
+
 
 
 class Building:
     __number_of_buildings: int = 0
     def __init__(self, build_type: str) :
         Building.__number_of_buildings += 1
-        self._id: str = ID_Generator.generate_id(build_type, Building.get_number_of_buildings())
+        self._id: str = hc.hchelper_functions.generate_id(build_type, Building.get_number_of_buildings())
         return self._id
     @staticmethod
     def get_number_of_buildings() -> int:
@@ -52,20 +54,35 @@ class Pharmacy(Building):
         self.id=super().__init__("BLD/PH")
 
     def dispense_medication(self, prescription):
-        medicine_name = prescription.get("medicine_name")
-        quantity = prescription.get("quantity")
-
-        if medicine_name in self.available_medicines:
-            if self.available_medicines[medicine_name] >= quantity:
-                self.available_medicines[medicine_name] -= quantity
-                self.prescriptions_list.append(prescription)
-                print(f"Dispensed {quantity} units of {medicine_name}.")
-            else:
-                print(f"Insufficient stock for {medicine_name}. Available: {self.available_medicines[medicine_name]}")
-        else:
-            print(f"{medicine_name} is not available in the pharmacy.")
+        medicine = prescription['medicine']
+        quantity = prescription['quantity']
+        
+        if self.check_stock(medicine) >= quantity:
+            self.available_medicines[medicine] -= quantity
+            hc.DBHandler.execute_query('''
+                UPDATE Medicine 
+                SET stock = stock - ? 
+                WHERE name = ?
+            ''', (quantity, medicine))
+            hc.DBHandler.execute_query('''
+                INSERT INTO Prescription 
+                (patient_id, medicine_id, dosage, date_prescribed)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                hc.DBHandler.get_db_id('Patient', prescription['patient'].get_id()),
+                hc.DBHandler.get_db_id('Medicine', medicine),
+                prescription['dosage'],
+                datetime.now().date().isoformat()
+            ))
+            return True
+        return False
+    
     def check_stock(self, medicine_name):
-        return self.available_medicines.get(medicine_name, 0)
+        result = hc.DBHandler.fetch_one('''
+            SELECT stock FROM Medicine WHERE name = ?
+        ''', (medicine_name,))
+        return result[0] if result else 0
+    
     def update_medicine_list(self, medicine_name: str, quantity:int) -> None:
         if medicine_name in self.available_medicines:
             self.available_medicines[medicine_name]+= quantity
@@ -80,6 +97,8 @@ class Pharmacy(Building):
         return (f"Pharmacist: {self.pharmacist}\n"
                 f"Available Medicines: {self.available_medicines}\n"
                 f"Prescriptions List: {self.prescriptions_list}")
+        
+
 class Ward(Building):
     def __init__(self, room_type, avilablitity=True, patient=None) -> None:
         self.id=super().__init__("BLD/WRM")
@@ -89,20 +108,35 @@ class Ward(Building):
         self.room_type = room_type
         self.patient = patient
         self.avilablitity = avilablitity
-    def assign_room(self, patient_name: Patient):
-        if self.avilablitity:
-            self.patient = patient_name.get_name()
-            self.avilablitity = False
-            print(f"Room {self.id} ({self.room_type}) assigned to {self.patient}.")
-        else:
-            print(f"Room {self.id} is already occupied by {self.patient}.")
+    def assign_room(self, patient):
+        if self.availability:
+            self.assigned_patient = patient
+            self.availability = False
+            hc.DBHandler.execute_query('''
+                UPDATE Ward 
+                SET assigned_patient = ?, availability = ? 
+                WHERE app_id = ?
+            ''', (
+                hc.DBHandler.get_db_id('Patient', patient.get_id()),
+                0,  
+                self.id
+            ))
+            return True
+        return False
     def discharge_patient(self):
-        if not self.avilablitity:
-            print(f"Patient {self.patient} discharged from Room {self.id}.")
+        if self.assigned_patient:
+            bill = hc.Billing(self.assigned_patient)
+            bill.generate_bill()
+            
+            hc.DBHandler.execute_query('''
+                UPDATE Ward 
+                SET assigned_patient = NULL, availability = 1 
+                WHERE app_id = ?
+            ''', (self.id,))
             self.assigned_patient = None
             self.availability = True
-        else:
-            print(f"Room {self.id} is already available.")
+            return bill
+        return None
     def check_availability(self):
         return self.avilablitity
 
