@@ -2,6 +2,60 @@ import curses
 from curses import wrapper
 
 import system as ss
+import sqlfunctions as sqf
+
+sqf.DBHandler.create_tables()
+
+patient_info = sqf.DBHandler.get_table("Patient")
+doctor_info = sqf.DBHandler.get_table("Doctor")
+admin_info = sqf.DBHandler.get_table("Administrator")
+
+for pat in patient_info:
+    patient = ss.pp.Patient(pat[2], pat[3], pat[4])
+    contact_info = pat[5].split(",")
+    patient.add_contact_info("email", contact_info[0])
+    patient.add_contact_info("phone_number", contact_info[1])
+    security_info = pat[6].split(",")
+    patient.add_security_info("email", security_info[0])
+    patient.add_security_info("password", security_info[1])
+    patient.set_diagnosis(pat[7])
+    patient.set_prescribed_treatment(pat[8])
+    patient.set_assigned_doctor(pat[9])
+
+    if "patients" not in ss.pp.persons:
+        ss.pp.persons["patients"] = list()
+    ss.pp.persons["patients"].append(patient)
+
+for doc in doctor_info:
+    doctor = ss.pp.Doctor(doc[2], doc[3], doc[4], doc[7])
+    contact_info = doc[5].split(",")
+    doctor.add_contact_info("email", contact_info[0])
+    doctor.add_contact_info("phone_number", contact_info[1])
+    security_info = doc[6].split(",")
+    doctor.add_security_info("email", security_info[0])
+    doctor.add_security_info("password", security_info[1])
+    patient_list = doc[8].split(":")
+    for pat in ss.pp.persons["patients"]:
+        if pat.get_id() in patient_list:
+            doctor.add_patient(pat)
+
+    if "doctors" not in ss.pp.persons:
+        ss.pp.persons["doctors"] = list()
+    ss.pp.persons["doctors"].append(doctor)
+
+for adm in admin_info:
+    admin = ss.pp.Administrator(adm[2], adm[3], adm[4])
+    contact_info = adm[5].split(",")
+    admin.add_contact_info("email", contact_info[0])
+    admin.add_contact_info("phone_number", contact_info[1])
+    security_info = adm[6].split(",")
+    admin.add_security_info("email", security_info[0])
+    admin.add_security_info("password", security_info[1])
+
+    if "admins" not in ss.pp.persons:
+        ss.pp.persons["admins"] = list()
+    ss.pp.persons["admins"].append(admin)
+
 
 def start_system() -> None:
     wrapper(ss.HospitalManagementSystem.display_starting_page)
@@ -236,6 +290,7 @@ def start_system() -> None:
                     if "admins" not in ss.pp.persons:
                         ss.pp.persons["admins"] = list()
                     ss.pp.persons["admins"].append(admin)
+                    sqf.DBHandler.insert_administrator(admin)
 
                     start_system()
 
@@ -245,6 +300,7 @@ def start_system() -> None:
                     if "doctors" not in ss.pp.persons:
                         ss.pp.persons["doctors"] = list()
                     ss.pp.persons["doctors"].append(doctor)
+                    sqf.DBHandler.insert_doctor(doctor)
 
                     start_system()
 
@@ -263,6 +319,7 @@ def start_system() -> None:
                     if "patients" not in ss.pp.persons:
                         ss.pp.persons["patients"] = list()
                     ss.pp.persons["patients"].append(patient)
+                    sqf.DBHandler.insert_patient(patient)
 
                     start_system()
 

@@ -129,8 +129,12 @@ class Doctor(Person):
         Doctor.__number_of_doctors += 1
         self._id: str = hc.helper_functions.generate_id("DOC", Doctor.get_number_of_doctors())
         self._specialization: str = specialization
-        self._available_slots = list()
         self._patients_list = list()
+
+    def get_specialization(self) -> str:
+        return self._specialization
+    def get_patient_list(self) -> list:
+        return self._patients_list
 
     @staticmethod
     def get_number_of_doctors() -> int:
