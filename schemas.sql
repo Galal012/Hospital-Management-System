@@ -2,21 +2,35 @@ CREATE TABLE 'Patient' (
     'patient_id' INTEGER PRIMARY KEY AUTOINCREMENT,
     'app_id' TEXT UNIQUE NOT NULL,
     'name' TEXT NOT NULL,
-    'age' INTEGER CHECK('age' >= 0),
-    'gender' TEXT CHECK('gender' IN ('Male', 'Female', 'Other')),
-    'contact_info' TEXT,
-    'assigned_doctor' INTEGER REFERENCES 'Doctor'('doctor_id'),
-    'status' TEXT DEFAULT 'active'
+    'age' INTEGER CHECK('age' > 0),
+    'gender' TEXT CHECK('gender' IN ('male', 'female')),
+    'contact_info' TEXT NOT NULL,
+    'security_info' TEXT NOT NULL,
+    'diagnosis' TEXT,
+    'prescribed_treatment' TEXT,
+    'assigned_doctor' TEXT
 );
 
 CREATE TABLE 'Doctor' (
     'doctor_id' INTEGER PRIMARY KEY AUTOINCREMENT,
     'app_id' TEXT UNIQUE NOT NULL,
     'name' TEXT NOT NULL,
+    'age' INTEGER CHECK('age' >= 18),
+    'gender' TEXT CHECK('gender' IN ('male', 'female')),
+    'contact_info' TEXT NOT NULL,
+    'security_info' TEXT NOT NULL,
     'specialization' TEXT NOT NULL,
-    'contact_info' TEXT,
-    'department_id' INTEGER REFERENCES 'Department'('department_id'),
-    'available_slots' TEXT
+    'patient_list' TEXT
+);
+
+CREATE TABLE 'Administrator' (
+    'admin_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'app_id' TEXT UNIQUE NOT NULL,
+    'name' TEXT NOT NULL,
+    'age' INTEGER CHECK('age' >= 18),
+    'gender' TEXT CHECK('gender' IN ('male', 'female')),
+    'contact_info' TEXT NOT NULL,
+    'security_info' TEXT NOT NULL
 );
 
 CREATE TABLE 'Nurse' (
@@ -98,14 +112,6 @@ CREATE TABLE 'Billing' (
     'total_amount' REAL GENERATED ALWAYS AS ('treatment_cost' + 'medicine_cost') STORED,
     'payment_status' TEXT CHECK('payment_status' IN ('paid', 'unpaid')) DEFAULT 'unpaid',
     'date_issued' DATE DEFAULT CURRENT_DATE
-);
-
-CREATE TABLE 'Administrator' (
-    'admin_id' INTEGER PRIMARY KEY AUTOINCREMENT,
-    'app_id' TEXT UNIQUE NOT NULL,
-    'name' TEXT NOT NULL,
-    'role' TEXT DEFAULT 'System Administrator',
-    'contact_info' TEXT
 );
 
 -- Indexes for frequently queried fields
