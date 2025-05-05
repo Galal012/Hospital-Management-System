@@ -1,96 +1,117 @@
 CREATE TABLE 'Patient' (
-    'patient_id' INTEGER PRIMARY KEY,
+    'patient_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'app_id' TEXT UNIQUE NOT NULL,
     'name' TEXT NOT NULL,
-    'age' INTEGER,
-    'gender' TEXT,
-    'medical_history' INTEGER REFERENCES 'MedicalRecord'('record_id'),
+    'age' INTEGER CHECK('age' >= 0),
+    'gender' TEXT CHECK('gender' IN ('Male', 'Female', 'Other')),
     'contact_info' TEXT,
-    'assigned_doctor' INTEGER REFERENCES 'Doctor'('doctor_id')
+    'assigned_doctor' INTEGER REFERENCES 'Doctor'('doctor_id'),
+    'status' TEXT DEFAULT 'active'
 );
 
 CREATE TABLE 'Doctor' (
-    'doctor_id' INTEGER PRIMARY KEY,
+    'doctor_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'app_id' TEXT UNIQUE NOT NULL,
     'name' TEXT NOT NULL,
-    'specialization' TEXT,
+    'specialization' TEXT NOT NULL,
     'contact_info' TEXT,
-    'department_id' INTEGER REFERENCES 'Department'('department_id')
+    'department_id' INTEGER REFERENCES 'Department'('department_id'),
+    'available_slots' TEXT
 );
 
 CREATE TABLE 'Nurse' (
-    'nurse_id' INTEGER PRIMARY KEY,
+    'nurse_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'app_id' TEXT UNIQUE NOT NULL,
     'name' TEXT NOT NULL,
     'assigned_ward' INTEGER REFERENCES 'Ward'('room_id'),
     'contact_info' TEXT
 );
 
--- Appointment System
-CREATE TABLE 'Appointment' (
-    'appointment_id' INTEGER PRIMARY KEY,
-    'patient_id' INTEGER REFERENCES 'Patient'('patient_id'),
-    'doctor_id' INTEGER REFERENCES 'Doctor'('doctor_id'),
-    'date' DATE,
-    'time' TIME,
-    'status' TEXT CHECK(status IN ('scheduled', 'completed', 'cancelled'))
+CREATE TABLE 'Vitals' (
+    'vital_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'patient_id' INTEGER NOT NULL REFERENCES 'Patient'('patient_id'),
+    'nurse_id' INTEGER NOT NULL REFERENCES 'Nurse'('nurse_id'),
+    'timestamp' DATETIME DEFAULT CURRENT_TIMESTAMP,
+    'blood_pressure' TEXT,
+    'heart_rate' INTEGER,
+    'temperature' REAL
 );
 
--- Department Structure
+CREATE TABLE 'Appointment' (
+    'appointment_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'app_id' TEXT UNIQUE NOT NULL,
+    'patient_id' INTEGER NOT NULL REFERENCES 'Patient'('patient_id'),
+    'doctor_id' INTEGER NOT NULL REFERENCES 'Doctor'('doctor_id'),
+    'date' DATE NOT NULL,
+    'time' TIME NOT NULL,
+    'status' TEXT CHECK('status' IN ('scheduled', 'completed', 'cancelled')) DEFAULT 'scheduled'
+);
+
 CREATE TABLE 'Department' (
-    'department_id' INTEGER PRIMARY KEY,
+    'department_id' INTEGER PRIMARY KEY AUTOINCREMENT,
     'name' TEXT NOT NULL,
     'head_of_department' INTEGER REFERENCES 'Doctor'('doctor_id'),
     'services_offered' TEXT
 );
 
--- Pharmacy System
 CREATE TABLE 'Medicine' (
     'medicine_id' INTEGER PRIMARY KEY AUTOINCREMENT,
-    'name' TEXT NOT NULL,
-    'stock' INTEGER DEFAULT 0
+    'name' TEXT NOT NULL UNIQUE,
+    'stock' INTEGER DEFAULT 0 CHECK('stock' >= 0),
+    'expiry_date' DATE
 );
 
-CREATE TABLE Prescription (
+CREATE TABLE 'Prescription' (
     'prescription_id' INTEGER PRIMARY KEY AUTOINCREMENT,
-    'patient_id' INTEGER REFERENCES 'Patient'('patient_id'),
-    'doctor_id' INTEGER REFERENCES 'Doctor'('doctor_id'),
-    'medicine_id' INTEGER REFERENCES 'Medicine'('medicine_id'),
-    'dosage' TEXT,
-    'date_prescribed' DATE
+    'patient_id' INTEGER NOT NULL REFERENCES 'Patient'('patient_id'),
+    'doctor_id' INTEGER NOT NULL REFERENCES 'Doctor'('doctor_id'),
+    'medicine_id' INTEGER NOT NULL REFERENCES 'Medicine'('medicine_id'),
+    'dosage' TEXT NOT NULL,
+    'date_prescribed' DATE DEFAULT CURRENT_DATE
 );
 
--- Medical Records
 CREATE TABLE 'MedicalRecord' (
     'record_id' INTEGER PRIMARY KEY AUTOINCREMENT,
-    'patient_id' INTEGER REFERENCES 'Patient'('patient_id'),
-    'doctor_id' INTEGER REFERENCES 'Doctor'('doctor_id'),
-    'diagnosis' TEXT,
-    'prescribed_treatment' TEXT,
+    'app_id' TEXT UNIQUE NOT NULL,
+    'patient_id' INTEGER NOT NULL REFERENCES 'Patient'('patient_id'),
+    'doctor_id' INTEGER NOT NULL REFERENCES 'Doctor'('doctor_id'),
+    'diagnosis' TEXT NOT NULL,
+    'prescribed_treatment' TEXT NOT NULL,
     'test_results' TEXT,
-    'record_date' DATE
+    'record_date' DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Billing Syste
--- will use transactions later
-CREATE TABLE 'Bill' (
-    'bill_id' INTEGER PRIMARY KEY AUTOINCREMENT,
-    'patient_id' INTEGER REFERENCES 'Patient'('patient_id'),
-    'treatment_cost' REAL,
-    'medicine_cost' REAL,
-    'total_amount' REAL GENERATED ALWAYS AS (treatment_cost + medicine_cost) STORED,
-    'payment_status' TEXT CHECK('payment_status' IN ('paid', 'unpaid'))
-);
-
--- Ward Management
 CREATE TABLE 'Ward' (
     'room_id' INTEGER PRIMARY KEY AUTOINCREMENT,
-    'type' TEXT CHECK(type IN ('icu', 'general', 'private')),
-    'availability' BOOLEAN DEFAULT 1,
+    'app_id' TEXT UNIQUE NOT NULL,
+    'type' TEXT CHECK(type IN ('ICU', 'general', 'private')) NOT NULL,
+    'availability' BOOLEAN DEFAULT TRUE,
     'assigned_patient' INTEGER REFERENCES 'Patient'('patient_id')
 );
 
--- Administrator
+CREATE TABLE 'Billing' (
+    'bill_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'app_id' TEXT UNIQUE NOT NULL,
+    'patient_id' INTEGER NOT NULL REFERENCES 'Patient'('patient_id'),
+    'treatment_cost' REAL DEFAULT 0.0 CHECK('treatment_cost' >= 0),
+    'medicine_cost' REAL DEFAULT 0.0 CHECK('medicine_cost' >= 0),
+    'total_amount' REAL GENERATED ALWAYS AS ('treatment_cost' + 'medicine_cost') STORED,
+    'payment_status' TEXT CHECK('payment_status' IN ('paid', 'unpaid')) DEFAULT 'unpaid',
+    'date_issued' DATE DEFAULT CURRENT_DATE
+);
+
 CREATE TABLE 'Administrator' (
-    'admin_id' INTEGER PRIMARY KEY,
+    'admin_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'app_id' TEXT UNIQUE NOT NULL,
     'name' TEXT NOT NULL,
-    'role' TEXT NOT NULL,
+    'role' TEXT DEFAULT 'System Administrator',
     'contact_info' TEXT
 );
+
+-- Indexes for frequently queried fields
+CREATE INDEX idx_patient_name ON Patient(name);
+CREATE INDEX idx_doctor_specialization ON Doctor(specialization);
+CREATE INDEX idx_appointment_date ON Appointment(date);
+CREATE INDEX idx_medicine_stock ON Medicine(stock);
+
+-- sqlite3 hospital.db < schema.sql

@@ -4,7 +4,6 @@ from curses import wrapper
 from typing import Dict, List
 import helper_classes as hc
 from helper_classes import MedicalRecord
-
 persons = dict()
 buildings = dict()
 
@@ -318,12 +317,26 @@ class Nurse(Person):
     def assist_doctor(self, doctor):
         return self.get_name(), doctor.get_name(), hc.datetime.now()
     
-    def record_vitals(self, vitals:List):
-        return vitals
+    def record_vitals(self, patient, vitals):
+        hc.DBHandler.execute_query('''
+            INSERT INTO Vitals 
+            (patient_id, nurse_id, timestamp, blood_pressure, heart_rate, temperature)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            hc.DBHandler.get_db_id('Patient', patient.get_id()),
+            hc.DBHandler.get_db_id('Nurse', self.get_id()),
+            hc.datetime.now().isoformat(),
+            vitals['bp'],
+            vitals['hr'],
+            vitals['temp']
+        ))
     
-    def update_patient_statues(self, patient):
-        statues = []
-        return statues
+    def update_patient_status(self, patient, status):
+        hc.DBHandler.execute_query('''
+            UPDATE Patient 
+            SET status = ? 
+            WHERE app_id = ?
+        ''', (status, patient.get_id()))
 
 class Administrator(Person):
     __number_of_administrator: int = 0
@@ -336,11 +349,26 @@ class Administrator(Person):
     def get_number_of_administrators() -> int:
         return Administrator.__number_of_administrator
 
+    """
+    def add_doctor(self, doctor):
+        hc.DBHandler.execute_query('''
+            INSERT INTO Doctor (app_id, name, specialization)
+            VALUES (?, ?, ?)
+        ''', (doctor.get_id(), doctor.get_name(), doctor._specialization))
+    """
+
     @staticmethod
     def add_doctor(doctor) -> None:
         if "doctors" not in persons:
             persons["doctors"] = list()
         persons["doctors"].append(doctor)
+
+        """
+            def remove_doctor(self, doctor_id):
+            hc.DBHandler.execute_query('''
+                DELETE FROM Doctor WHERE app_id = ?
+            ''', (doctor_id,))
+        """
 
     @staticmethod
     def remove_doctor(win, doctor_id) -> None:
