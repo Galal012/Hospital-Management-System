@@ -9,6 +9,82 @@ import people as pp
 current_user = None
 
 
+class LoadFromDB:
+    @staticmethod
+    def load_patients():
+        patient_info = pp.hc.sqf.DBHandler.get_table("Patient")
+        for pat in patient_info:
+            patient = pp.Patient(pat[2], pat[3], pat[4])
+            contact_info = pat[5].split(",")
+            patient.add_contact_info("email", contact_info[0])
+            patient.add_contact_info("phone_number", contact_info[1])
+            security_info = pat[6].split(",")
+            patient.add_security_info("email", security_info[0])
+            patient.add_security_info("password", security_info[1])
+            patient.set_diagnosis(pat[7])
+            patient.set_prescribed_treatment(pat[8])
+            patient.set_assigned_doctor(pat[9])
+
+            if "patients" not in pp.persons:
+                pp.persons["patients"] = list()
+            pp.persons["patients"].append(patient)
+
+    @staticmethod
+    def load_doctors():
+        doctor_info = pp.hc.sqf.DBHandler.get_table("Doctor")
+        for doc in doctor_info:
+            doctor = pp.Doctor(doc[2], doc[3], doc[4], doc[7])
+            contact_info = doc[5].split(",")
+            doctor.add_contact_info("email", contact_info[0])
+            doctor.add_contact_info("phone_number", contact_info[1])
+            security_info = doc[6].split(",")
+            doctor.add_security_info("email", security_info[0])
+            doctor.add_security_info("password", security_info[1])
+            patient_list = doc[8].split(":")
+            for pat in pp.persons["patients"]:
+                if pat.get_id() in patient_list:
+                    doctor.add_patient(pat)
+
+            if "doctors" not in pp.persons:
+                pp.persons["doctors"] = list()
+            pp.persons["doctors"].append(doctor)
+
+    @staticmethod
+    def load_admins():
+        admin_info = pp.hc.sqf.DBHandler.get_table("Administrator")
+        for adm in admin_info:
+            admin = pp.Administrator(adm[2], adm[3], adm[4])
+            contact_info = adm[5].split(",")
+            admin.add_contact_info("email", contact_info[0])
+            admin.add_contact_info("phone_number", contact_info[1])
+            security_info = adm[6].split(",")
+            admin.add_security_info("email", security_info[0])
+            admin.add_security_info("password", security_info[1])
+
+            if "admins" not in pp.persons:
+                pp.persons["admins"] = list()
+            pp.persons["admins"].append(admin)
+
+    @staticmethod
+    def load_records():
+        record_info = pp.hc.sqf.DBHandler.get_table("MedicalRecord")
+        for record in record_info:
+            pat_id, doc_id = record[2], record[3]
+            patient, doctor = None, None
+            for pat in pp.persons["patients"]:
+                if pat.get_id() == pat_id:
+                    patient = pat
+                    break
+            for doc in pp.persons["doctors"]:
+                if doc.get_id() == doc_id:
+                    doctor = doc
+                    break
+
+            medical_record = pp.hc.MedicalRecord(patient, doctor, record[4], record[5], record[6], record[7], record[8])
+            patient.add_medical_record(medical_record)
+
+
+
 class HospitalManagementSystem:
     @staticmethod
     def display_starting_page(stdscr) -> None:

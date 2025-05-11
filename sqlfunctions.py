@@ -3,15 +3,20 @@ from typing import Optional
 
 
 # Database connection singleton
-def get_db_connection():
-    conn = sqlite3.connect('hospital.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+class DatabaseConnection:
+    _connection = None
+
+    @staticmethod
+    def get_db_connection():
+        if DatabaseConnection._connection is None:
+            DatabaseConnection._connection = sqlite3.connect('hospital.db')
+            DatabaseConnection._connection.row_factory = sqlite3.Row
+        return DatabaseConnection._connection
 
 class DBHandler:
     @staticmethod
     def create_tables():
-        conn = get_db_connection()
+        conn = DatabaseConnection.get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
                 CREATE TABLE IF NOT EXISTS 'Patient' (
@@ -68,22 +73,20 @@ class DBHandler:
             );
                 ''')
         conn.commit()
-        conn.close()
 
     @staticmethod
     def get_db_id(table: str, app_id: str) -> Optional[int]:
         """Get database ID from application-generated ID"""
-        conn = get_db_connection()
+        conn = DatabaseConnection.get_db_connection()
         cursor = conn.cursor()
         cursor.execute(f'SELECT rowid FROM {table} WHERE app_id = ?', (app_id,))
         result = cursor.fetchone()
-        conn.close()
         return result[0] if result else None
 
 
     @staticmethod
     def insert_patient(patient: 'Patient'):
-        conn = get_db_connection()
+        conn = DatabaseConnection.get_db_connection()
         try:
             cursor = conn.cursor()
             cursor.execute('''
@@ -103,11 +106,11 @@ class DBHandler:
             ))
             conn.commit()
         finally:
-            conn.close()
+            pass
 
     @staticmethod
     def insert_doctor(doctor: 'Doctor'):
-        conn = get_db_connection()
+        conn = DatabaseConnection.get_db_connection()
         try:
             patient_list = ""
             for p in doctor.get_patient_list():
@@ -131,11 +134,11 @@ class DBHandler:
             ))
             conn.commit()
         finally:
-            conn.close()
+            pass
 
     @staticmethod
     def insert_administrator(admin: 'Administrator'):
-        conn = get_db_connection()
+        conn = DatabaseConnection.get_db_connection()
         try:
             cursor = conn.cursor()
             cursor.execute('''
@@ -151,11 +154,11 @@ class DBHandler:
             ))
             conn.commit()
         finally:
-            conn.close()
+            pass
 
     @staticmethod
     def insert_medical_record(record, patient_id):
-        conn = get_db_connection()
+        conn = DatabaseConnection.get_db_connection()
         try:
             cursor = conn.cursor()
             cursor.execute('''
@@ -174,13 +177,12 @@ class DBHandler:
             ))
             conn.commit()
         finally:
-            conn.close()
+            pass
 
     @staticmethod
     def get_table(table):
-        conn = get_db_connection()
+        conn = DatabaseConnection.get_db_connection()
         cursor = conn.cursor()
         cursor.execute(f'SELECT * FROM {table}')
         result = cursor.fetchall()
-        conn.close()
         return result

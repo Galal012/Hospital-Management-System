@@ -3,66 +3,18 @@ from curses import wrapper
 
 import system as ss
 
-# conn = ss.pp.hc.sqf.get_db_connection()
+# conn = ss.pp.hc.sqf.DatabaseConnection.get_db_connection()
 # cursor = conn.cursor()
 # cursor.execute("SELECT * FROM MedicalRecord;")
 # result = cursor.fetchall()[0]
 # print(result["test_results"])
 # conn.commit()
-# conn.close()
 
 ss.pp.hc.sqf.DBHandler.create_tables()
-
-patient_info = ss.pp.hc.sqf.DBHandler.get_table("Patient")
-doctor_info = ss.pp.hc.sqf.DBHandler.get_table("Doctor")
-admin_info = ss.pp.hc.sqf.DBHandler.get_table("Administrator")
-record_info = ss.pp.hc.sqf.DBHandler.get_table("MedicalRecord")
-
-for pat in patient_info:
-    patient = ss.pp.Patient(pat[2], pat[3], pat[4])
-    contact_info = pat[5].split(",")
-    patient.add_contact_info("email", contact_info[0])
-    patient.add_contact_info("phone_number", contact_info[1])
-    security_info = pat[6].split(",")
-    patient.add_security_info("email", security_info[0])
-    patient.add_security_info("password", security_info[1])
-    patient.set_diagnosis(pat[7])
-    patient.set_prescribed_treatment(pat[8])
-    patient.set_assigned_doctor(pat[9])
-
-    if "patients" not in ss.pp.persons:
-        ss.pp.persons["patients"] = list()
-    ss.pp.persons["patients"].append(patient)
-
-for doc in doctor_info:
-    doctor = ss.pp.Doctor(doc[2], doc[3], doc[4], doc[7])
-    contact_info = doc[5].split(",")
-    doctor.add_contact_info("email", contact_info[0])
-    doctor.add_contact_info("phone_number", contact_info[1])
-    security_info = doc[6].split(",")
-    doctor.add_security_info("email", security_info[0])
-    doctor.add_security_info("password", security_info[1])
-    patient_list = doc[8].split(":")
-    for pat in ss.pp.persons["patients"]:
-        if pat.get_id() in patient_list:
-            doctor.add_patient(pat)
-
-    if "doctors" not in ss.pp.persons:
-        ss.pp.persons["doctors"] = list()
-    ss.pp.persons["doctors"].append(doctor)
-
-for adm in admin_info:
-    admin = ss.pp.Administrator(adm[2], adm[3], adm[4])
-    contact_info = adm[5].split(",")
-    admin.add_contact_info("email", contact_info[0])
-    admin.add_contact_info("phone_number", contact_info[1])
-    security_info = adm[6].split(",")
-    admin.add_security_info("email", security_info[0])
-    admin.add_security_info("password", security_info[1])
-
-    if "admins" not in ss.pp.persons:
-        ss.pp.persons["admins"] = list()
-    ss.pp.persons["admins"].append(admin)
+ss.LoadFromDB.load_patients()
+ss.LoadFromDB.load_doctors()
+ss.LoadFromDB.load_admins()
+ss.LoadFromDB.load_records()
 
 
 def start_system() -> None:
@@ -140,9 +92,6 @@ def start_system() -> None:
                             if not is_logged:
                                 start_system()
 
-                        title = "Mr. "
-                        if ss.current_user.get_gender().lower() == "female":
-                            title = "Mrs. "
                         ss.pp.hc.helper_functions.display_page_heading("*** Doctor Page ***")
                         option3 = ss.pp.hc.helper_functions.display_get_options([
                             "Add Patient",
@@ -153,7 +102,7 @@ def start_system() -> None:
                             "Add Patient Record",
                             "View Patient Records",
                             "Log Out"
-                        ], f"####  Welcome Back, {title}{ss.current_user.get_name()}  ####")
+                        ], f"####  Welcome Back, Dr. {ss.current_user.get_name()}  ####")
 
                         match option3:
                             case 1:
@@ -268,6 +217,32 @@ def start_system() -> None:
                                 ss.current_user.view_medical_history()
                                 patient_interface()
 
+                            case 3:
+                                ss.pp.hc.helper_functions.display_page_heading("*** Patient Information Page ***")
+                                def run(stdscr):
+                                    headings = ["Patient Data"]
+                                    cols_width = [30, 40]
+                                    data = [
+                                        ["ID", ss.current_user.get_id()],
+                                        ["Name", ss.current_user.get_name()],
+                                        ["Age", ss.current_user.get_age()],
+                                        ["Gender", ss.current_user.get_gender()],
+                                        ["Assigned Doctor", ss.current_user.get_assigned_doctor()],
+                                        ["Diagnosis", ss.current_user.get_diagnosis()],
+                                        ["Prescribed Treatment", ss.current_user.get_prescribed_treatment()]
+                                    ]
+                                    ss.pp.hc.helper_functions.display_table(
+                                        stdscr,
+                                        6,
+                                        "Patient Information:",
+                                        headings,
+                                        data,
+                                        cols_width
+                                    )
+
+                                wrapper(run)
+                                patient_interface()
+
                             case 4:
                                 ss.current_user = None
                                 start_system()
@@ -335,6 +310,8 @@ def start_system() -> None:
                     start_system()
 
         case _:
+            conn = ss.pp.hc.sqf.DatabaseConnection.get_db_connection()
+            conn.close()
             exit()
 
 

@@ -159,7 +159,7 @@ class Doctor(Person):
             self._patients_list.append(patient)
             patient.set_assigned_doctor(self.get_name())
 
-            conn = hc.sqf.get_db_connection()
+            conn = hc.sqf.DatabaseConnection.get_db_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT patient_list FROM Doctor WHERE app_id = ?", (self.get_id(),))
             result = cursor.fetchone()[0]
@@ -169,7 +169,6 @@ class Doctor(Person):
                 result = result[1:]
             cursor.execute("UPDATE Doctor SET patient_list = ? WHERE app_id = ?", (result, self.get_id(),))
             conn.commit()
-            conn.close()
 
     def remove_patient(self, win, patient_id) -> None:
         idx = -1
@@ -183,7 +182,7 @@ class Doctor(Person):
             hc.helper_functions.display_error(win, "Can't Find This Patient")
             tm.sleep(3)
         else:
-            conn = hc.sqf.get_db_connection()
+            conn = hc.sqf.DatabaseConnection.get_db_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT patient_list FROM Doctor WHERE app_id = ?", (self.get_id(),))
             pat_list = cursor.fetchone()[0].split(":")
@@ -195,7 +194,6 @@ class Doctor(Person):
 
             cursor.execute("UPDATE Doctor SET patient_list = ? WHERE app_id = ?", (result, self.get_id(),))
             conn.commit()
-            conn.close()
 
             self._patients_list[idx].set_assigned_doctor(str())
             del self._patients_list[idx]
@@ -245,11 +243,10 @@ class Doctor(Person):
                     diagnosis = hc.helper_functions.take_str(stdscr, win)
                     patient.set_diagnosis(diagnosis)
 
-                    conn = hc.sqf.get_db_connection()
+                    conn = hc.sqf.DatabaseConnection.get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("UPDATE Patient SET diagnosis = ? WHERE app_id = ?", (diagnosis, patient_id,))
                     conn.commit()
-                    conn.close()
 
                     hc.helper_functions.display_success_message(win, "Patient Diagnosed Successfully")
                     tm.sleep(3)
@@ -283,11 +280,10 @@ class Doctor(Person):
                     treatment = hc.helper_functions.take_str(stdscr, win)
                     patient.set_prescribed_treatment(treatment)
 
-                    conn = hc.sqf.get_db_connection()
+                    conn = hc.sqf.DatabaseConnection.get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("UPDATE Patient SET prescribed_treatment = ? WHERE app_id = ?", (treatment, patient_id,))
                     conn.commit()
-                    conn.close()
 
                     hc.helper_functions.display_success_message(win, "Treatment Prescribed Successfully")
                     tm.sleep(3)
@@ -400,6 +396,7 @@ class Administrator(Person):
         if "doctors" not in persons:
             persons["doctors"] = list()
         persons["doctors"].append(doctor)
+        hc.sqf.DBHandler.insert_doctor(doctor)
 
     @staticmethod
     def remove_doctor(win, doctor_id) -> None:
