@@ -32,3 +32,15 @@ CREATE TABLE IF NOT EXISTS 'Administrator' (
     'contact_info' TEXT NOT NULL,
     'security_info' TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS 'MedicalRecord' (
+    'record_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'app_id' TEXT UNIQUE NOT NULL,
+    'patient_id' TEXT NOT NULL,
+    'doctor_id' TEXT NOT NULL,
+    'diagnosis' TEXT NOT NULL,
+    'prescribed_treatment' TEXT NOT NULL,
+    'test_results' TEXT NOT NULL,
+    'date' TEXT NOT NULL,
+    'time' TEXT NOT NULL
+);

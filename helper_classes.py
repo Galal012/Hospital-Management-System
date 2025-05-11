@@ -4,6 +4,7 @@ import curses
 from curses import wrapper
 from curses.textpad import rectangle
 
+import sqlfunctions as sqf
 
 class helper_functions:
     @staticmethod
@@ -266,7 +267,7 @@ class MedicalRecord:
         }
 
     def get_record_id(self):
-        return self._record_id
+        return self._id
 
     def get_patient(self):
         return self._patient

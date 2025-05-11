@@ -2,13 +2,21 @@ import curses
 from curses import wrapper
 
 import system as ss
-import sqlfunctions as sqf
 
-sqf.DBHandler.create_tables()
+# conn = ss.pp.hc.sqf.get_db_connection()
+# cursor = conn.cursor()
+# cursor.execute("SELECT * FROM MedicalRecord;")
+# result = cursor.fetchall()[0]
+# print(result["test_results"])
+# conn.commit()
+# conn.close()
 
-patient_info = sqf.DBHandler.get_table("Patient")
-doctor_info = sqf.DBHandler.get_table("Doctor")
-admin_info = sqf.DBHandler.get_table("Administrator")
+ss.pp.hc.sqf.DBHandler.create_tables()
+
+patient_info = ss.pp.hc.sqf.DBHandler.get_table("Patient")
+doctor_info = ss.pp.hc.sqf.DBHandler.get_table("Doctor")
+admin_info = ss.pp.hc.sqf.DBHandler.get_table("Administrator")
+record_info = ss.pp.hc.sqf.DBHandler.get_table("MedicalRecord")
 
 for pat in patient_info:
     patient = ss.pp.Patient(pat[2], pat[3], pat[4])
@@ -290,7 +298,7 @@ def start_system() -> None:
                     if "admins" not in ss.pp.persons:
                         ss.pp.persons["admins"] = list()
                     ss.pp.persons["admins"].append(admin)
-                    sqf.DBHandler.insert_administrator(admin)
+                    ss.pp.hc.sqf.DBHandler.insert_administrator(admin)
 
                     start_system()
 
@@ -300,7 +308,7 @@ def start_system() -> None:
                     if "doctors" not in ss.pp.persons:
                         ss.pp.persons["doctors"] = list()
                     ss.pp.persons["doctors"].append(doctor)
-                    sqf.DBHandler.insert_doctor(doctor)
+                    ss.pp.hc.sqf.DBHandler.insert_doctor(doctor)
 
                     start_system()
 
@@ -319,7 +327,7 @@ def start_system() -> None:
                     if "patients" not in ss.pp.persons:
                         ss.pp.persons["patients"] = list()
                     ss.pp.persons["patients"].append(patient)
-                    sqf.DBHandler.insert_patient(patient)
+                    ss.pp.hc.sqf.DBHandler.insert_patient(patient)
 
                     start_system()
 

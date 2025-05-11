@@ -1,6 +1,7 @@
 import sqlite3
 from typing import Optional
 
+
 # Database connection singleton
 def get_db_connection():
     conn = sqlite3.connect('hospital.db')
@@ -50,6 +51,20 @@ class DBHandler:
                 'gender' TEXT,
                 'contact_info' TEXT NOT NULL,
                 'security_info' TEXT NOT NULL
+            );
+                ''')
+
+        cursor.execute('''
+                CREATE TABLE IF NOT EXISTS 'MedicalRecord' (
+                'record_id' INTEGER PRIMARY KEY AUTOINCREMENT,
+                'app_id' TEXT UNIQUE NOT NULL,
+                'patient_id' TEXT NOT NULL,
+                'doctor_id' TEXT NOT NULL,
+                'diagnosis' TEXT NOT NULL,
+                'prescribed_treatment' TEXT NOT NULL,
+                'test_results' TEXT NOT NULL,
+                'date' TEXT NOT NULL,
+                'time' TEXT NOT NULL
             );
                 ''')
         conn.commit()
@@ -133,6 +148,29 @@ class DBHandler:
                 admin.get_gender(),
                 f"{admin.get_contact_info()["email"]},{admin.get_contact_info()["phone_number"]}",
                 f"{admin.get_security_info()["email"]},{admin.get_security_info()["password"]}"
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def insert_medical_record(record, patient_id):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                                INSERT INTO MedicalRecord (app_id, patient_id, doctor_id, diagnosis,
+                                prescribed_treatment, test_results, date, time)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (
+                record.get_record_id(),
+                record.get_patient().get_id(),
+                record.get_doctor().get_id(),
+                record.get_diagnosis(),
+                record.get_prescribed_treatment(),
+                record.get_test_results(),
+                record.get_date(),
+                record.get_time(),
             ))
             conn.commit()
         finally:

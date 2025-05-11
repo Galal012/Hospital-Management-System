@@ -3,7 +3,6 @@ import curses
 from curses import wrapper
 from typing import Dict, List
 import helper_classes as hc
-from helper_classes import MedicalRecord
 
 persons = dict()
 buildings = dict()
@@ -160,6 +159,18 @@ class Doctor(Person):
             self._patients_list.append(patient)
             patient.set_assigned_doctor(self.get_name())
 
+            conn = hc.sqf.get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT patient_list FROM Doctor WHERE app_id = ?", (self.get_id(),))
+            result = cursor.fetchone()[0]
+
+            result += f":{patient.get_id()}"
+            if result[0] == ":":
+                result = result[1:]
+            cursor.execute("UPDATE Doctor SET patient_list = ? WHERE app_id = ?", (result, self.get_id(),))
+            conn.commit()
+            conn.close()
+
     def remove_patient(self, win, patient_id) -> None:
         idx = -1
 
@@ -172,6 +183,20 @@ class Doctor(Person):
             hc.helper_functions.display_error(win, "Can't Find This Patient")
             tm.sleep(3)
         else:
+            conn = hc.sqf.get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT patient_list FROM Doctor WHERE app_id = ?", (self.get_id(),))
+            pat_list = cursor.fetchone()[0].split(":")
+            pat_list.remove(patient_id)
+            result = ""
+            for p in pat_list:
+                result += f"{p}:"
+            result = result[:-1]
+
+            cursor.execute("UPDATE Doctor SET patient_list = ? WHERE app_id = ?", (result, self.get_id(),))
+            conn.commit()
+            conn.close()
+
             self._patients_list[idx].set_assigned_doctor(str())
             del self._patients_list[idx]
             hc.helper_functions.display_success_message(win, "Patient Removed Successfully")
@@ -220,6 +245,12 @@ class Doctor(Person):
                     diagnosis = hc.helper_functions.take_str(stdscr, win)
                     patient.set_diagnosis(diagnosis)
 
+                    conn = hc.sqf.get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE Patient SET diagnosis = ? WHERE app_id = ?", (diagnosis, patient_id,))
+                    conn.commit()
+                    conn.close()
+
                     hc.helper_functions.display_success_message(win, "Patient Diagnosed Successfully")
                     tm.sleep(3)
 
@@ -251,6 +282,12 @@ class Doctor(Person):
 
                     treatment = hc.helper_functions.take_str(stdscr, win)
                     patient.set_prescribed_treatment(treatment)
+
+                    conn = hc.sqf.get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE Patient SET prescribed_treatment = ? WHERE app_id = ?", (treatment, patient_id,))
+                    conn.commit()
+                    conn.close()
 
                     hc.helper_functions.display_success_message(win, "Treatment Prescribed Successfully")
                     tm.sleep(3)
@@ -284,7 +321,7 @@ class Doctor(Person):
                     test_results = hc.helper_functions.take_str(stdscr, win)
                     date = f"{str(hc.datetime.now().date())}"
                     time = f"{str(hc.datetime.now().time())[0:8]}"
-                    record = MedicalRecord(
+                    record = hc.MedicalRecord(
                         patient,
                         self,
                         patient.get_diagnosis(),
@@ -294,6 +331,7 @@ class Doctor(Person):
                         time
                     )
                     patient.add_medical_record(record)
+                    hc.sqf.DBHandler.insert_medical_record(record, patient_id)
 
                     hc.helper_functions.display_success_message(win, "Patient Record Added Successfully")
                     tm.sleep(3)
