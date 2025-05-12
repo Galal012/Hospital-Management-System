@@ -6,6 +6,8 @@ from curses.textpad import rectangle
 
 import sqlfunctions as sqf
 
+appointments = list()
+
 class helper_functions:
     @staticmethod
     def generate_id(prefix, counter) -> str:
@@ -209,37 +211,34 @@ class helper_functions:
 
 class Appointment():
     __number_of_appointments = 0
-    __appointments = {}
 
-    def __init__(self, patient, doctor, time, statues) -> None:
+    def __init__(self, patient, symptoms) -> None:
         Appointment.__number_of_appointments += 1
         self._id = helper_functions.generate_id("APP", Appointment.get_number_of_appointments())
         self._patient = patient
+        self._doctor = None
+        self._symptoms = symptoms
+        self._date = datetime.now().date()
+        self._time = str(datetime.now().time())[0:8]
+        self._status = "Pending"
+
+    def get_patient(self):
+        return self._patient
+    def set_doctor(self, doctor):
         self._doctor = doctor
-        self._date = datetime.now()
-        self._time = time
-        self._statues = statues
-        self._data = {'patient': self._patient, 'doctor': self._doctor, 'time': self._time}
+    def set_status(self, status):
+        self._status = status
 
     @staticmethod
     def get_number_of_appointments() -> int:
         return Appointment.__number_of_appointments
 
-    @staticmethod
-    def schedule_appointment(self) -> None:
-        Appointment.__appointments.update({self._id: self._data})
+    def schedule_appointment(self):
+        appointments.append(self)
 
-    @staticmethod
     def cancel_appointment(self) -> None:
-        del Appointment.__appointments[self._id]
-        """
-        Appointment.__number_of_appointments -= 1
-        this cause a problem with the ids because now multiple appointments can have the same id
-        """
+        appointments.remove(self)
 
-    @staticmethod
-    def reschedule_appointment(self, new_time) -> None:
-        Appointment.__appointments[self._id[self._time]] = new_time
 
 
 class MedicalRecord:

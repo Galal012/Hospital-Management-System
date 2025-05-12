@@ -193,6 +193,99 @@ def start_system() -> None:
 
                     doctor_interface()
 
+                case 3:
+                    def nurse_interface() -> None:
+                        if ss.current_user is None:
+                            is_logged = ss.HospitalManagementSystem.login_user("nurses")
+                            if not is_logged:
+                                start_system()
+
+                        title = "Mr. "
+                        if ss.current_user.get_gender().lower() == "female":
+                            title = "Mrs. "
+                        ss.pp.hc.helper_functions.display_page_heading("*** Nurse Page ***")
+                        option3 = ss.pp.hc.helper_functions.display_get_options([
+                            "Update Patient Status",
+                            "Assist Doctor",
+                            "Manage Ward",
+                            "Log Out"
+                        ], f"####  Welcome Back, {title}{ss.current_user.get_name()}  ####")
+
+                        match option3:
+                            case 1:
+                                ss.pp.hc.helper_functions.display_page_heading("*** Update Patient Status Page ***")
+
+                                def run(stdscr):
+                                    win, patient_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Patient")
+                                    ss.current_user.update_patient_statues(win, patient_id)
+                                    nurse_interface()
+
+                                wrapper(run)
+
+                            case 2:
+                                ss.pp.hc.helper_functions.display_page_heading("*** Assist Doctor Page ***")
+
+                                def run(stdscr):
+                                    win, doctor_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Doctor")
+
+                                    if "doctors" not in ss.pp.persons:
+                                        ss.pp.hc.helper_functions.display_error(win, "Can't Find This Doctor")
+                                        ss.tm.sleep(3)
+                                        nurse_interface()
+                                        return
+
+                                    for doctor in ss.pp.persons["doctors"]:
+                                        if doctor.get_id() == doctor_id:
+                                            ss.current_user.assist_doctor(doctor)
+                                            ss.pp.hc.helper_functions.display_success_message(
+                                                win,
+                                                "Doctor Assisted Successfully"
+                                            )
+                                            ss.tm.sleep(3)
+                                            nurse_interface()
+                                            return
+
+                                    ss.pp.hc.helper_functions.display_error(win, "Can't Find This Doctor")
+                                    ss.tm.sleep(3)
+                                    nurse_interface()
+
+                                wrapper(run)
+
+                            case 3:
+                                ss.pp.hc.helper_functions.display_page_heading("*** Manage Ward Page ***")
+
+                                def run(stdscr):
+                                    win, ward_id = ss.pp.hc.helper_functions.take_person_id(stdscr, "Ward")
+
+                                    if "wards" not in ss.pp.buildings:
+                                        ss.pp.hc.helper_functions.display_error(win, "Can't Find This Ward")
+                                        ss.tm.sleep(3)
+                                        nurse_interface()
+                                        return
+
+                                    for ward in ss.pp.buildings["wards"]:
+                                        if ward.get_id() == ward_id:
+                                            ss.current_user.assign_ward(ward)
+                                            ss.pp.hc.helper_functions.display_success_message(
+                                                win,
+                                                "Ward Managed Successfully"
+                                            )
+                                            ss.tm.sleep(3)
+                                            nurse_interface()
+                                            return
+
+                                    ss.pp.hc.helper_functions.display_error(win, "Can't Find This Ward")
+                                    ss.tm.sleep(3)
+                                    nurse_interface()
+
+                                wrapper(run)
+
+                            case 4:
+                                ss.current_user = None
+                                start_system()
+
+                    nurse_interface()
+
                 case 4:
                     def patient_interface() -> None:
                         if ss.current_user is None:
@@ -212,6 +305,11 @@ def start_system() -> None:
                         ], f"####  Welcome Back, {title}{ss.current_user.get_name()}  ####")
 
                         match option3:
+                            case 1:
+                                ss.pp.hc.helper_functions.display_page_heading("*** Appointment Booking Page ***")
+                                ss.current_user.book_appointment()
+                                patient_interface()
+
                             case 2:
                                 ss.pp.hc.helper_functions.display_page_heading("*** Patient Records Page ***")
                                 ss.current_user.view_medical_history()

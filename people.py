@@ -114,9 +114,35 @@ class Patient(Person):
 
         wrapper(run)
 
-    def book_appointment(self, doctor) -> None:
-        self._assigned_doctor = doctor.get_id()
-        ...  # Waiting for appointment class
+    def book_appointment(self) -> None:
+        def run(stdscr):
+            curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+            green_and_black = curses.color_pair(3)
+
+            rows, columns = stdscr.getmaxyx()
+
+            win = curses.newwin(rows // 4, columns // 2, rows // 4 - 1, columns // 4 - 1)
+            win.clear()
+
+            win.addstr(0, 0, "Enter The Symptoms:", curses.A_BOLD | green_and_black)
+            win.addstr(2, 0, f"{len("Enter The Symptoms:") * "-"}", curses.A_BOLD | green_and_black)
+
+            curses.curs_set(1)
+
+            label = "Symptoms:"
+            win.addstr(4, 5, label, curses.A_BOLD)
+            stdscr.move(rows // 4 + 3, columns // 4 + len(label) + 5)
+            win.move(4, len(label) + 6)
+            win.refresh()
+
+            symptoms = hc.helper_functions.take_str(stdscr, win)
+            appointment = hc.Appointment(self, symptoms)
+            appointment.schedule_appointment()
+
+            hc.helper_functions.display_success_message(win, "Appointment Booked Successfully")
+            tm.sleep(3)
+
+        wrapper(run)
 
     def get_patient_info(self) -> tuple[str, int, str, str, str]:
         return self.get_name(), self.get_age(), self.get_gender(), self.get_diagnosis(), self.get_prescribed_treatment()
@@ -158,6 +184,14 @@ class Doctor(Person):
         if patient not in self._patients_list:
             self._patients_list.append(patient)
             patient.set_assigned_doctor(self.get_name())
+
+            appointment = None
+            for app in hc.appointments:
+                if app.get_patient() == patient:
+                    appointment = app
+                    break
+            if appointment is not None:
+                appointment.set_doctor(self)
 
             conn = hc.sqf.DatabaseConnection.get_db_connection()
             cursor = conn.cursor()
@@ -355,28 +389,57 @@ class Nurse(Person):
         super().__init__(name, age, gender)
         Nurse.__number_of_nurses += 1
         self._id: str = hc.helper_functions.generate_id("NUR", Nurse.get_number_of_nurses())
-        self._assigned_ward = str()
-        self._patients_assigned = list()
+        self._assigned_ward = None
+        self._assisted_doctor = None
 
     @staticmethod
     def get_number_of_nurses() -> int:
         return Nurse.__number_of_nurses
 
-    def assign_patient(self, patien) -> None:
-        self._patients_assigned.append(patien)
-
     def assign_ward(self, ward) -> None:
         self._assigned_ward = ward
 
     def assist_doctor(self, doctor):
-        return self.get_name(), doctor.get_name(), hc.datetime.now()
+        self._assisted_doctor = doctor
 
-    def record_vitals(self, vitals: List):
-        return vitals
+    @staticmethod
+    def update_patient_statues(win, patient_id):
+        appointment = None
+        for app in hc.appointments:
+            if app.get_patient().get_id() == patient_id:
+                appointment = app
+                break
 
-    def update_patient_statues(self, patient):
-        statues = []
-        return statues
+        if appointment is not None:
+            def run(stdscr):
+                curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+                green_and_black = curses.color_pair(3)
+
+                rows, columns = stdscr.getmaxyx()
+
+                win.addstr(5, 0, "Enter Status:", curses.A_BOLD | green_and_black)
+                win.addstr(6, 0, f"{len("Enter Status:") * "-"}", curses.A_BOLD | green_and_black)
+
+                curses.curs_set(1)
+
+                label = "Status:"
+                win.addstr(8, 5, label, curses.A_BOLD)
+                stdscr.move(rows // 4 + 7, columns // 4 + len(label) + 5)
+                win.move(8, len(label) + 6)
+                win.refresh()
+
+                status = hc.helper_functions.take_str(stdscr, win)
+                appointment.set_status(status)
+
+                hc.helper_functions.display_success_message(win, "Status Updated Successfully")
+                tm.sleep(3)
+
+            wrapper(run)
+            return
+
+        hc.helper_functions.display_error(win, "Can't Find This Patient")
+        tm.sleep(3)
+
 
 
 class Administrator(Person):
