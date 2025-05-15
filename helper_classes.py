@@ -76,12 +76,12 @@ class helper_functions:
 
             def display_options():
                 for i in range(len(options)):
-                    win.addstr(2 + i, 5, options[i])
+                    win.addstr(2 + i, 5, f"{options[i]}{(27-len(options[i])) * " "}")
 
             option = 0
             while True:
                 display_options()
-                win.addstr(2 + option, 5, options[option], curses.A_REVERSE)
+                win.addstr(2 + option, 5, f"{options[option]}{(27-len(options[option])) * " "}", curses.A_REVERSE)
                 win.refresh()
 
                 key = stdscr.getkey()
@@ -137,24 +137,22 @@ class helper_functions:
                 pass
 
     @staticmethod
-    def take_person_id(stdscr, person: str) -> tuple[curses, str]:
+    def take_user_input(stdscr, message: str, label: str, strt=0) -> tuple[curses, str]:
         curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
         green_and_black = curses.color_pair(3)
 
         rows, columns = stdscr.getmaxyx()
 
-        win = curses.newwin(rows // 4, columns // 2, rows // 4 - 1, columns // 4 - 1)
+        win = curses.newwin(min(rows // 4, (rows - (rows // 4 + strt))-1), columns // 2, rows // 4 + strt, columns // 4 - 1)
         win.clear()
 
-        heading_message = f"Enter {person} ID:"
-        win.addstr(0, 0, heading_message, curses.A_BOLD | green_and_black)
-        win.addstr(1, 0, f"{len(heading_message) * "-"}", curses.A_BOLD | green_and_black)
+        win.addstr(0, 0, message, curses.A_BOLD | green_and_black)
+        win.addstr(1, 0, f"{len(message) * "-"}", curses.A_BOLD | green_and_black)
 
         curses.curs_set(1)
 
-        label = f"{person} ID:"
         win.addstr(3, 5, label, curses.A_BOLD)
-        stdscr.move(rows // 4 + 2, columns // 4 + len(label) + 5)
+        stdscr.move(rows // 4 + strt + 3, columns // 4 + len(label) + 5)
         win.move(3, len(label) + 6)
         win.refresh()
 
@@ -162,7 +160,7 @@ class helper_functions:
         return win, person_id
 
     @staticmethod
-    def display_table(stdscr, start_row, label, headings, data, cols_width):
+    def display_table(stdscr, start_row, label, headings, data, cols_width, stop=True):
         curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
         curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)
         green_and_black = curses.color_pair(3)
@@ -198,18 +196,19 @@ class helper_functions:
                     col += cols_width[i]
                 line += 1
 
-        stdscr.addstr(
-            yb + height + 1,
-            xb + (width - len("Press any key to continue...")) // 2,
-            "Press any key to continue...",
-            yellow_and_black | curses.A_BOLD
-        )
-        curses.curs_set(1)
-        stdscr.refresh()
-        stdscr.getch()
+        if stop:
+            stdscr.addstr(
+                yb + height + 1,
+                xb + (width - len("Press any key to continue...")) // 2,
+                "Press any key to continue...",
+                yellow_and_black | curses.A_BOLD
+            )
+            curses.curs_set(1)
+            stdscr.refresh()
+            stdscr.getch()
 
 
-class Appointment():
+class Appointment:
     __number_of_appointments = 0
 
     def __init__(self, patient, symptoms) -> None:
