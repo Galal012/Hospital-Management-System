@@ -1,6 +1,8 @@
 import curses
 from curses import wrapper
 
+from pandas.io.clipboard import is_available
+
 import system as ss
 
 # conn = ss.bd.pp.hc.sqf.DatabaseConnection.get_db_connection()
@@ -560,7 +562,7 @@ def start_system() -> None:
                                 buildings_interface()
 
                     case 3:
-                        ss.bd.pp.hc.helper_functions.display_page_heading("*** Manage Department Page ***")
+                        ss.bd.pp.hc.helper_functions.display_page_heading("*** Manage Building Page ***")
 
                         option3 = ss.bd.pp.hc.helper_functions.display_get_options([
                             "Department",
@@ -574,7 +576,7 @@ def start_system() -> None:
                                 ss.bd.pp.hc.helper_functions.display_page_heading("*** Manage Department Page ***")
 
                                 def run(stdscr):
-                                    headings = ["NO.", "Name", "ID", "Services Offered"]
+                                    headings = ["NO.", "ID", "Name", "Services Offered"]
                                     cols_width = [5, 20, 15, 100]
                                     data = list()
                                     stop = True
@@ -584,8 +586,8 @@ def start_system() -> None:
                                         for i, dep in enumerate(ss.bd.pp.buildings["departments"]):
                                             data.append([
                                                 f"{i+1}.",
-                                                dep.get_name(),
                                                 dep.get_id(),
+                                                dep.get_name(),
                                                 str(dep.get_services_offered())[1:-1].replace("'",  "")
                                             ])
 
@@ -630,7 +632,7 @@ def start_system() -> None:
                                                 "Add Service",
                                                 "View Department Information",
                                                 "Go Back"
-                                            ], "Manage:")
+                                            ], "Select Option:")
 
                                             match option4:
                                                 case 1:
@@ -644,7 +646,7 @@ def start_system() -> None:
 
                                                         head_of_department = head_of_department.strip()
                                                         if not head_of_department or head_of_department == "":
-                                                            ss.bd.pp.hc.helper_functions.display_error(win, "!!ERROR: Enter a valid name!!")
+                                                            ss.bd.pp.hc.helper_functions.display_error(win, "Enter a valid name")
                                                         else:
                                                             depart.set_head_of_department(head_of_department)
                                                             ss.bd.pp.hc.helper_functions.display_success_message(win, "Head of Department Set Successfully")
@@ -705,12 +707,449 @@ def start_system() -> None:
                                                     depart.view_doctors_list()
                                                     manage_department()
 
+                                                case 5:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Add Service Page ***")
+
+                                                    def run(stdscr):
+                                                        win, service = ss.bd.pp.hc.helper_functions.take_user_input(stdscr,
+                                                                                                                      "Enter Service:",
+                                                                                                                      "Service:")
+
+                                                        service = service.strip()
+                                                        if not service or service == "":
+                                                            ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                                       "Enter a valid service")
+                                                        else:
+                                                            depart.add_service(service)
+                                                            ss.bd.pp.hc.helper_functions.display_success_message(win,
+                                                                                                                 "Service Added Successfully")
+
+                                                        ss.bd.pp.tm.sleep(3)
+                                                        manage_department()
+
+                                                    wrapper(run)
+
+                                                case 6:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Department Information Page ***")
+
+                                                    depart.view_information()
+                                                    manage_department()
+
                                                 case _:
                                                     buildings_interface()
 
                                         manage_department()
 
                                 wrapper(run)
+
+                            case 2:
+                                ss.bd.pp.hc.helper_functions.display_page_heading("*** Manage Pharmacy Page ***")
+
+                                def run(stdscr):
+                                    headings = ["NO.", "ID", "Pharmacy Name", "Pharmacist Name"]
+                                    cols_width = [5, 15, 30, 40]
+                                    data = list()
+                                    stop = True
+
+                                    if "pharmacies" in ss.bd.pp.buildings:
+                                        stop = False
+                                        for i, phr in enumerate(ss.bd.pp.buildings["pharmacies"]):
+                                            data.append([
+                                                f"{i + 1}.",
+                                                phr.get_id(),
+                                                phr.get_pharmacy_name(),
+                                                phr.get_pharmacist_name(),
+                                            ])
+
+                                    ss.bd.pp.hc.helper_functions.display_table(
+                                        stdscr,
+                                        6,
+                                        "Current Pharmacies:",
+                                        headings,
+                                        data,
+                                        cols_width,
+                                        stop
+                                    )
+
+                                    if stop:
+                                        buildings_interface()
+
+                                    win, pharmacy_id = ss.bd.pp.hc.helper_functions.take_user_input(stdscr,
+                                                                                                      "Enter Pharmacy ID:",
+                                                                                                      "Pharmacy ID:",
+                                                                                                      2 + len(data))
+
+                                    pharma = None
+
+                                    for phr in ss.bd.pp.buildings["pharmacies"]:
+                                        if phr.get_id() == pharmacy_id:
+                                            pharma = phr
+                                            break
+
+                                    if pharma is None:
+                                        ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                   "Incorrect Pharmacy ID")
+                                        ss.tm.sleep(3)
+                                        buildings_interface()
+
+                                    else:
+                                        def manage_pharmacy():
+                                            ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                "*** Manage Pharmacy Page ***")
+
+                                            option4 = ss.bd.pp.hc.helper_functions.display_get_options([
+                                                "Add Medicine Stock",
+                                                "Check Medicine Stock",
+                                                "Dispense Prescription",
+                                                "View Current Stock",
+                                                "View Pharmacy Information",
+                                                "Go Back"
+                                            ], "Select Option:")
+
+                                            match option4:
+                                                case 1:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Adding Medicine Stock Page ***")
+
+                                                    def run(stdscr):
+                                                        curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+                                                        curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+                                                        red_and_black = curses.color_pair(2)
+                                                        green_and_black = curses.color_pair(3)
+
+                                                        rows, columns = stdscr.getmaxyx()
+
+                                                        win = curses.newwin(rows // 2, columns // 2,
+                                                                            rows // 4 - 1, columns // 4 - 1)
+                                                        win_rows, win_columns = win.getmaxyx()
+                                                        win.clear()
+
+                                                        win.addstr(0, 0, "Enter Medicine Name and Quantity:",
+                                                                   curses.A_BOLD | green_and_black)
+                                                        win.addstr(1, 0, "---------------------------------",
+                                                                   curses.A_BOLD | green_and_black)
+
+                                                        curses.curs_set(1)
+
+                                                        def get_medicine_name():
+                                                            try:
+                                                                win.addstr(3, 5,
+                                                                           f"Medicine Name:{(win_columns - len("Medicine Name:") - 5) * " "}",
+                                                                           curses.A_BOLD)
+                                                                stdscr.move(rows // 4 + 2, columns // 4 + 26)
+                                                                win.move(3, 27)
+                                                                win.refresh()
+                                                                val = ss.bd.pp.hc.helper_functions.take_str(stdscr,
+                                                                                                         win).strip()
+                                                                if not val or val == "":
+                                                                    raise ValueError
+                                                            except ValueError:
+                                                                win.addstr(win_rows - 1, 0,
+                                                                           "!!ERROR: Enter a valid medicine name!!",
+                                                                           red_and_black)
+                                                                win.refresh()
+                                                                return get_medicine_name()
+                                                            except Exception as e:
+                                                                win.addstr(win_rows - 1, 0,
+                                                                           f"!!UNEXPECTED ERROR: {e}!!",
+                                                                           red_and_black)
+                                                                win.refresh()
+                                                                return get_medicine_name()
+                                                            else:
+                                                                win.addstr(win_rows - 1, 0,
+                                                                           f"{(win_columns - 1) * " "}")
+                                                                win.refresh()
+                                                                return val
+                                                        medicine_name = get_medicine_name()
+
+                                                        def get_quantity():
+                                                            try:
+                                                                win.addstr(4, 5,
+                                                                           f"Quantity:{(win_columns - len("Quantity:") - 5) * " "}",
+                                                                           curses.A_BOLD)
+                                                                stdscr.move(rows // 4 + 3, columns // 4 + 26)
+                                                                win.move(4, 27)
+                                                                win.refresh()
+                                                                val = int(ss.bd.pp.hc.helper_functions.take_str(stdscr,
+                                                                                                             win).strip())
+                                                                if val <= 0:
+                                                                    raise ValueError
+                                                            except ValueError:
+                                                                win.addstr(win_rows - 1, 0,
+                                                                           "!!ERROR: Enter a valid quantity!!",
+                                                                           red_and_black)
+                                                                win.refresh()
+                                                                return get_quantity()
+                                                            except Exception as e:
+                                                                win.addstr(win_rows - 1, 0,
+                                                                           f"!!UNEXPECTED ERROR: {e}!!", red_and_black)
+                                                                win.refresh()
+                                                                return get_quantity()
+                                                            else:
+                                                                win.addstr(win_rows - 1, 0,
+                                                                           f"{(win_columns - 1) * " "}")
+                                                                win.refresh()
+                                                                return val
+                                                        quantity = get_quantity()
+
+                                                        ss.bd.pp.hc.helper_functions.display_success_message(win,
+                                                                                                          "Medicine Stock Added Successfully")
+                                                        ss.tm.sleep(3)
+
+                                                        pharma.add_medicine_stock(medicine_name.lower(), quantity)
+                                                        manage_pharmacy()
+
+                                                    wrapper(run)
+
+                                                case 2:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Check Medicine Stock Page ***")
+
+                                                    def run(stdscr):
+                                                        win, medicine_name = ss.bd.pp.hc.helper_functions.take_user_input(
+                                                            stdscr,
+                                                            "Enter Medicine Name:",
+                                                            "Medicine Name:")
+
+                                                        medicine_name = medicine_name.strip().lower()
+                                                        if not medicine_name or medicine_name == "":
+                                                            ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                                       "Enter a valid medicine name")
+                                                        else:
+                                                            quantity = pharma.check_stock(medicine_name)
+                                                            if not quantity:
+                                                                ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                                           f"{medicine_name} is out of stock!")
+                                                            else:
+                                                                ss.bd.pp.hc.helper_functions.display_success_message(win,
+                                                                                                                 f"{medicine_name.capitalize()} is available in stock – {quantity} units.")
+
+                                                        ss.bd.pp.tm.sleep(3)
+                                                        manage_pharmacy()
+
+                                                    wrapper(run)
+
+                                                case 3:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Dispense Prescription Page ***")
+
+                                                    def run(stdscr):
+                                                        win, prescription = ss.bd.pp.hc.helper_functions.take_user_input(
+                                                            stdscr,
+                                                            "Enter Prescription (Formatted [Name:Quantity,Name:Quantity,...])",
+                                                            "Prescription:")
+
+                                                        prescription = prescription.strip()
+                                                        if not prescription or prescription == "":
+                                                            ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                                       "Enter a valid Prescription")
+                                                        else:
+                                                            prescription = prescription.split(",")
+                                                            for i in range(len(prescription)):
+                                                                prescription[i] = prescription[i].split(":")
+                                                                prescription[i][0] = prescription[i][0].lower()
+                                                                prescription[i][1] = int(prescription[i][1])
+
+                                                            can_dispense = pharma.dispense_medication(prescription)
+                                                            if not can_dispense:
+                                                                ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                                           "Some items in the prescription are out of stock")
+                                                            else:
+                                                                ss.bd.pp.hc.helper_functions.display_success_message(
+                                                                    win,
+                                                                    "Prescription Dispensed Successfully")
+
+
+                                                        ss.bd.pp.tm.sleep(3)
+                                                        manage_pharmacy()
+
+                                                    wrapper(run)
+
+                                                case 4:
+                                                    pharma.view_stock()
+                                                    manage_pharmacy()
+
+                                                case 5:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Pharmacy Information Page ***")
+
+                                                    pharma.view_information()
+                                                    manage_pharmacy()
+
+                                                case _:
+                                                    buildings_interface()
+
+                                        manage_pharmacy()
+
+                                wrapper(run)
+
+                            case 3:
+                                ss.bd.pp.hc.helper_functions.display_page_heading("*** Manage Ward Page ***")
+
+                                def run(stdscr):
+                                    headings = ["NO.", "ID", "Room Type", "Availability"]
+                                    cols_width = [5, 15, 15, 20]
+                                    data = list()
+                                    stop = True
+
+                                    if "wards" in ss.bd.pp.buildings:
+                                        stop = False
+                                        for i, wd in enumerate(ss.bd.pp.buildings["wards"]):
+                                            data.append([
+                                                f"{i + 1}.",
+                                                wd.get_id(),
+                                                wd.get_room_type(),
+                                                str(wd.check_availability())
+                                            ])
+
+                                    ss.bd.pp.hc.helper_functions.display_table(
+                                        stdscr,
+                                        6,
+                                        "Current Wards:",
+                                        headings,
+                                        data,
+                                        cols_width,
+                                        stop
+                                    )
+
+                                    if stop:
+                                        buildings_interface()
+
+                                    win, ward_id = ss.bd.pp.hc.helper_functions.take_user_input(stdscr,
+                                                                                                      "Enter Ward ID:",
+                                                                                                      "Ward ID:",
+                                                                                                      2 + len(data))
+
+                                    wrd = None
+
+                                    for wd in ss.bd.pp.buildings["wards"]:
+                                        if wd.get_id() == ward_id:
+                                            wrd = wd
+                                            break
+
+                                    if wrd is None:
+                                        ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                   "Incorrect Ward ID")
+                                        ss.tm.sleep(3)
+                                        buildings_interface()
+
+                                    else:
+                                        def manage_ward():
+                                            ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                "*** Manage Ward Page ***")
+
+                                            option4 = ss.bd.pp.hc.helper_functions.display_get_options([
+                                                "Reserve Room",
+                                                "Discharge Patient",
+                                                "Check Availability",
+                                                "View Ward Information",
+                                                "Go Back"
+                                            ], "Select Option:")
+
+                                            match option4:
+                                                case 1:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Reserve Room page ***")
+                                                    if not wrd.check_availability():
+                                                        def run(stdscr):
+                                                            rows, columns = stdscr.getmaxyx()
+                                                            win = curses.newwin(1, columns // 2, rows // 4 - 1,
+                                                                                columns // 4 - 1)
+                                                            ss.bd.pp.hc.helper_functions.display_error(
+                                                                win,
+                                                                "Room is Currently Unavailable"
+                                                            )
+                                                            ss.tm.sleep(3)
+
+                                                        wrapper(run)
+                                                        manage_ward()
+
+                                                    def run(stdscr):
+                                                        win, patient_id = ss.bd.pp.hc.helper_functions.take_user_input(
+                                                            stdscr, "Enter Patient ID:", "Patient ID:")
+
+                                                        if "patients" not in ss.bd.pp.persons:
+                                                            ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                                       "Can't Find This Patient")
+                                                            ss.tm.sleep(3)
+                                                            manage_ward()
+                                                            return
+
+                                                        for patient in ss.bd.pp.persons["patients"]:
+                                                            if patient.get_id() == patient_id:
+                                                                wrd.assign_room(patient)
+                                                                ss.bd.pp.hc.helper_functions.display_success_message(
+                                                                    win,
+                                                                    "Room Reserved Successfully"
+                                                                )
+                                                                ss.tm.sleep(3)
+                                                                manage_ward()
+                                                                return
+
+                                                        ss.bd.pp.hc.helper_functions.display_error(win,
+                                                                                                   "Can't Find This Patient")
+                                                        ss.tm.sleep(3)
+                                                        manage_ward()
+
+                                                    wrapper(run)
+
+                                                case 2:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Discharge Patient page ***")
+                                                    wrd.discharge_patient()
+                                                    def run(stdscr):
+                                                        rows, columns = stdscr.getmaxyx()
+                                                        win = curses.newwin(1, columns // 2, rows // 4 - 1,
+                                                                            columns // 4 - 1)
+                                                        ss.bd.pp.hc.helper_functions.display_success_message(
+                                                            win,
+                                                            "Patient Discharged Successfully"
+                                                        )
+                                                        ss.tm.sleep(3)
+
+                                                    wrapper(run)
+                                                    manage_ward()
+
+                                                case 3:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Check Availability page ***")
+                                                    is_free = wrd.check_availability()
+
+                                                    def run(stdscr):
+                                                        rows, columns = stdscr.getmaxyx()
+                                                        win = curses.newwin(1, columns // 2, rows // 4 - 1,
+                                                                            columns // 4 - 1)
+                                                        if is_free:
+                                                            ss.bd.pp.hc.helper_functions.display_success_message(
+                                                                win,
+                                                                "Room is Currently Available"
+                                                            )
+                                                        else:
+                                                            ss.bd.pp.hc.helper_functions.display_error(
+                                                                win,
+                                                                "Room is Currently Unavailable"
+                                                            )
+                                                        ss.tm.sleep(3)
+
+                                                    wrapper(run)
+                                                    manage_ward()
+
+                                                case 4:
+                                                    ss.bd.pp.hc.helper_functions.display_page_heading(
+                                                        "*** Ward Information Page ***")
+
+                                                    wrd.view_information()
+                                                    manage_ward()
+
+                                                case _:
+                                                    buildings_interface()
+
+                                        manage_ward()
+
+                                wrapper(run)
+
 
                             case _:
                                 buildings_interface()

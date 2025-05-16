@@ -1,10 +1,11 @@
 import curses
+from abc import ABC, abstractmethod
 from curses import wrapper
 from typing import Dict, List
 import people as pp
 
 
-class Building:
+class Building(ABC):
     __number_of_buildings: int = 0
     def __init__(self) :
         self._id: str = str()
@@ -16,6 +17,10 @@ class Building:
 
     def get_id(self) -> str:
         return self._id
+
+    @abstractmethod
+    def view_information(self):
+        pass
 
 
 class Department(Building):
@@ -86,6 +91,27 @@ class Department(Building):
     def add_service(self, service: str) -> None:
         self._services_offered.append(service)
 
+    def view_information(self):
+        def run(stdscr):
+            headings = ["Department Data"]
+            cols_width = [30, 120]
+            data = [
+                ["ID", self.get_id()],
+                ["Name", self.get_name()],
+                ["Head of Department", self.get_head_of_department()],
+                ["Services Offered", str(self.get_services_offered())[1:-1].replace("'", "")]
+            ]
+            pp.hc.helper_functions.display_table(
+                stdscr,
+                6,
+                "Department Information:",
+                headings,
+                data,
+                cols_width
+            )
+
+        wrapper(run)
+
     @staticmethod
     def get_number_of_departments() -> int:
         return Department.__number_of_departments
@@ -98,32 +124,75 @@ class Pharmacy(Building):
         super().__init__()
         self._pharmacy_name =  pharmacy_name
         self._pharmacist_name = pharmacist_name
-        self._available_medicines = dict()
+        self._medicine_stock = dict()
         self._prescriptions_list = list()
         Pharmacy.__number_of_pharmacies += 1
         self._id = pp.hc.helper_functions.generate_id("PHR", Pharmacy.get_number_of_pharmacies())
 
-    def dispense_medication(self, prescription):
-        medicine_name = prescription.get("medicine_name")
-        quantity = prescription.get("quantity")
+    def get_pharmacy_name(self):
+        return self._pharmacy_name
+    def get_pharmacist_name(self):
+        return self._pharmacist_name
 
-        if medicine_name in self.available_medicines:
-            if self.available_medicines[medicine_name] >= quantity:
-                self.available_medicines[medicine_name] -= quantity
-                self.prescriptions_list.append(prescription)
-                print(f"Dispensed {quantity} units of {medicine_name}.")
-            else:
-                print(f"Insufficient stock for {medicine_name}. Available: {self.available_medicines[medicine_name]}")
+    def add_medicine_stock(self, medicine_name: str, quantity:int) -> None:
+        if medicine_name in self._medicine_stock:
+            self._medicine_stock[medicine_name] += quantity
         else:
-            print(f"{medicine_name} is not available in the pharmacy.")
+            self._medicine_stock[medicine_name] = quantity
+
     def check_stock(self, medicine_name):
-        return self.available_medicines.get(medicine_name, 0)
-    def update_medicine_list(self, medicine_name: str, quantity:int) -> None:
-        if medicine_name in self.available_medicines:
-            self.available_medicines[medicine_name]+= quantity
-        else:
-            self.available_medicines[medicine_name] = quantity
-        print(f"Updated {medicine_name} stock to {self.available_medicines[medicine_name]} units.")
+        return self._medicine_stock.get(medicine_name, 0)
+
+    def dispense_medication(self, prescription):
+        for item in prescription:
+            if self._medicine_stock.get(item[0], 0) < item[1]:
+                return False
+
+        for item in prescription:
+            self._medicine_stock[item[0]] -= item[1]
+
+        self._prescriptions_list.append(prescription)
+        return True
+
+    def view_stock(self):
+        pp.hc.helper_functions.display_page_heading("View Stock Page")
+
+        def run(stdscr):
+            headings = ["Medicine Name", "Quantity"]
+            cols_width = [20, 12]
+            data = list()
+            for item in self._medicine_stock:
+                data.append([item, self._medicine_stock[item]])
+            pp.hc.helper_functions.display_table(
+                stdscr,
+                6,
+                "Current Stock:",
+                headings,
+                data,
+                cols_width
+            )
+
+        wrapper(run)
+
+    def view_information(self):
+        def run(stdscr):
+            headings = ["Pharmacy Data"]
+            cols_width = [30, 60]
+            data = [
+                ["ID", self.get_id()],
+                ["Pharmacy Name", self.get_pharmacy_name()],
+                ["Pharmacist Name", self.get_pharmacist_name()],
+            ]
+            pp.hc.helper_functions.display_table(
+                stdscr,
+                6,
+                "Pharmacy Information:",
+                headings,
+                data,
+                cols_width
+            )
+
+        wrapper(run)
 
     @staticmethod
     def get_number_of_pharmacies() -> int:
@@ -141,23 +210,44 @@ class Ward(Building):
         Ward.__number_of_wards += 1
         self._id = pp.hc.helper_functions.generate_id("WRD", Ward.get_number_of_wards())
 
-    def assign_room(self, patient_name):
-        if self.avilablitity:
-            self.patient = patient_name.get_name()
-            self.avilablitity = False
-            print(f"Room {self.id} ({self.room_type}) assigned to {self.patient}.")
-        else:
-            print(f"Room {self.id} is already occupied by {self.patient}.")
+    def get_room_type(self):
+        return self._room_type
+    def check_availability(self):
+        return self._availability
+
+    def assign_room(self, patient):
+        self._patient = patient
+        self._availability = False
 
     def discharge_patient(self):
-        if not self.avilablitity:
-            print(f"Patient {self.patient} discharged from Room {self.id}.")
-            self.assigned_patient = None
-            self.availability = True
-        else:
-            print(f"Room {self.id} is already available.")
-    def check_availability(self):
-        return self.avilablitity
+        self._patient = None
+        self._availability = True
+
+
+    def view_information(self):
+        def run(stdscr):
+            headings = ["Ward Data"]
+            cols_width = [30, 60]
+            patient_id, patient_name = None, None
+            if self._patient:
+                patient_id, patient_name = self._patient.get_id(), self._patient.get_name()
+            data = [
+                ["ID", self.get_id()],
+                ["Room Type", self.get_room_type()],
+                ["Availability", self.check_availability()],
+                ["Assigned Patient ID", patient_id],
+                ["Assigned Patient Name", patient_name]
+            ]
+            pp.hc.helper_functions.display_table(
+                stdscr,
+                6,
+                "Ward Information:",
+                headings,
+                data,
+                cols_width
+            )
+
+        wrapper(run)
 
     @staticmethod
     def get_number_of_wards() -> int:
