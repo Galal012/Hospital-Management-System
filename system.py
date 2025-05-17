@@ -1,10 +1,13 @@
-import time as tm
 import curses
 from curses import wrapper
-
+import time as tm
 from email_validator import validate_email, EmailNotValidError
 
 import buildings as bd
+import people as pp
+import helper_classes as hc
+import sqlfunctions as sqf
+import sender
 
 current_user = None
 
@@ -12,9 +15,9 @@ current_user = None
 class LoadFromDB:
     @staticmethod
     def load_patients():
-        patient_info = bd.pp.hc.sqf.DBHandler.get_table("Patient")
+        patient_info = sqf.DBHandler.get_table("Patient")
         for pat in patient_info:
-            patient = bd.pp.Patient(pat[2], pat[3], pat[4])
+            patient = pp.Patient(pat[2], pat[3], pat[4])
             contact_info = pat[5].split(",")
             patient.add_contact_info("email", contact_info[0])
             patient.add_contact_info("phone_number", contact_info[1])
@@ -25,15 +28,15 @@ class LoadFromDB:
             patient.set_prescribed_treatment(pat[8])
             patient.set_assigned_doctor(pat[9])
 
-            if "patients" not in bd.pp.persons:
-                bd.pp.persons["patients"] = list()
-            bd.pp.persons["patients"].append(patient)
+            if "patients" not in pp.persons:
+                pp.persons["patients"] = list()
+            pp.persons["patients"].append(patient)
 
     @staticmethod
     def load_doctors():
-        doctor_info = bd.pp.hc.sqf.DBHandler.get_table("Doctor")
+        doctor_info = sqf.DBHandler.get_table("Doctor")
         for doc in doctor_info:
-            doctor = bd.pp.Doctor(doc[2], doc[3], doc[4], doc[7])
+            doctor = pp.Doctor(doc[2], doc[3], doc[4], doc[7])
             contact_info = doc[5].split(",")
             doctor.add_contact_info("email", contact_info[0])
             doctor.add_contact_info("phone_number", contact_info[1])
@@ -41,19 +44,19 @@ class LoadFromDB:
             doctor.add_security_info("email", security_info[0])
             doctor.add_security_info("password", security_info[1])
             patient_list = doc[8].split(":")
-            for pat in bd.pp.persons["patients"]:
+            for pat in pp.persons["patients"]:
                 if pat.get_id() in patient_list:
                     doctor.add_patient(pat)
 
-            if "doctors" not in bd.pp.persons:
-                bd.pp.persons["doctors"] = list()
-            bd.pp.persons["doctors"].append(doctor)
+            if "doctors" not in pp.persons:
+                pp.persons["doctors"] = list()
+            pp.persons["doctors"].append(doctor)
 
     @staticmethod
     def load_admins():
-        admin_info = bd.pp.hc.sqf.DBHandler.get_table("Administrator")
+        admin_info = sqf.DBHandler.get_table("Administrator")
         for adm in admin_info:
-            admin = bd.pp.Administrator(adm[2], adm[3], adm[4])
+            admin = pp.Administrator(adm[2], adm[3], adm[4])
             contact_info = adm[5].split(",")
             admin.add_contact_info("email", contact_info[0])
             admin.add_contact_info("phone_number", contact_info[1])
@@ -61,26 +64,29 @@ class LoadFromDB:
             admin.add_security_info("email", security_info[0])
             admin.add_security_info("password", security_info[1])
 
-            if "admins" not in bd.pp.persons:
-                bd.pp.persons["admins"] = list()
-            bd.pp.persons["admins"].append(admin)
+            if "admins" not in pp.persons:
+                pp.persons["admins"] = list()
+            pp.persons["admins"].append(admin)
 
     @staticmethod
     def load_records():
-        record_info = bd.pp.hc.sqf.DBHandler.get_table("MedicalRecord")
+        record_info = sqf.DBHandler.get_table("MedicalRecord")
         for record in record_info:
             pat_id, doc_id = record[2], record[3]
             patient, doctor = None, None
-            for pat in bd.pp.persons["patients"]:
+            for pat in pp.persons["patients"]:
                 if pat.get_id() == pat_id:
                     patient = pat
                     break
-            for doc in bd.pp.persons["doctors"]:
+            for doc in pp.persons["doctors"]:
                 if doc.get_id() == doc_id:
                     doctor = doc
                     break
 
-            medical_record = bd.pp.hc.MedicalRecord(patient, doctor, record[4], record[5], record[6], record[7], record[8])
+            medical_record = hc.MedicalRecord(
+                patient, doctor, record[4], record[5],
+                record[6], record[7], record[8]
+            )
             patient.add_medical_record(medical_record)
 
 
@@ -88,12 +94,12 @@ class LoadFromDB:
 class HospitalManagementSystem:
     @staticmethod
     def display_starting_page(stdscr) -> None:
-        bd.pp.hc.helper_functions.display_page_heading("*** Welcome to Hospital Management System ***")
+        hc.helper_functions.display_page_heading("*** Welcome to Hospital Management System ***")
 
         blue_and_black = curses.color_pair(1)
         columns = curses.COLS
-        date = f"Date: {str(bd.pp.hc.datetime.now().date())}"
-        time = f"Time: {str(bd.pp.hc.datetime.now().time())[0:8]}"
+        date = f"Date: {str(hc.datetime.now().date())}"
+        time = f"Time: {str(hc.datetime.now().time())[0:8]}"
         stdscr.addstr(f"{date}{(columns - len(date) - len(time)) * " "}{time}", blue_and_black)
 
         stdscr.refresh()
@@ -101,7 +107,7 @@ class HospitalManagementSystem:
 
     @staticmethod
     def login_user(users: str) -> bool:
-        bd.pp.hc.helper_functions.display_page_heading("*** Log In Page ***")
+        hc.helper_functions.display_page_heading("*** Log In Page ***")
         def run(stdscr):
             global current_user
 
@@ -122,28 +128,28 @@ class HospitalManagementSystem:
             stdscr.move(rows // 4 + 2, columns // 4 + 14)
             win.move(3, 15)
             win.refresh()
-            email = bd.pp.hc.helper_functions.take_str(stdscr, win)
+            email = hc.helper_functions.take_str(stdscr, win)
 
             win.addstr(4, 5, f"Password:", curses.A_BOLD)
             stdscr.move(rows // 4 + 3, columns // 4 + 14)
             win.move(4, 15)
             win.refresh()
-            password = bd.pp.hc.helper_functions.take_str(stdscr, win)
+            password = hc.helper_functions.take_str(stdscr, win)
 
-            if users not in bd.pp.persons:
-                bd.pp.hc.helper_functions.display_error(win, "Invalid Credentials Please Try again")
+            if users not in pp.persons:
+                hc.helper_functions.display_error(win, "Invalid Credentials Please Try again")
                 tm.sleep(3)
                 return False
 
-            for user in bd.pp.persons[users]:
+            for user in pp.persons[users]:
                 security_info = user.get_security_info()
                 if security_info["email"] == email and security_info["password"] == password:
                     current_user = user
-                    bd.pp.hc.helper_functions.display_success_message(win, "Log In Completed Successfully")
+                    hc.helper_functions.display_success_message(win, "Log In Completed Successfully")
                     tm.sleep(3)
                     return True
 
-            bd.pp.hc.helper_functions.display_error(win, "Invalid Credentials Please Try again")
+            hc.helper_functions.display_error(win, "Invalid Credentials Please Try again")
             tm.sleep(3)
             return False
 
@@ -175,7 +181,7 @@ class HospitalManagementSystem:
                     stdscr.move(rows // 4 + 2, columns // 4 + 26)
                     win.move(3, 27)
                     win.refresh()
-                    val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip()
+                    val = hc.helper_functions.take_str(stdscr, win).strip()
                     if not val or val == "":
                         raise ValueError
                 except ValueError:
@@ -198,7 +204,7 @@ class HospitalManagementSystem:
                     stdscr.move(rows // 4 + 3, columns // 4 + 26)
                     win.move(4, 27)
                     win.refresh()
-                    val = int(bd.pp.hc.helper_functions.take_str(stdscr, win).strip())
+                    val = int(hc.helper_functions.take_str(stdscr, win).strip())
                     if user == "patient":
                         if val < 0 or val > 150:
                             raise ValueError
@@ -221,11 +227,15 @@ class HospitalManagementSystem:
 
             def get_gender():
                 try:
-                    win.addstr(5, 5, f"Gender(Male/Female):{(win_columns-len("Gender(Male/Female):")-5) * " "}", curses.A_BOLD)
+                    win.addstr(
+                        5, 5,
+                        f"Gender(Male/Female):{(win_columns-len("Gender(Male/Female):")-5) * " "}",
+                        curses.A_BOLD
+                    )
                     stdscr.move(rows // 4 + 4, columns // 4 + 26)
                     win.move(5, 27)
                     win.refresh()
-                    val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip().lower()
+                    val = hc.helper_functions.take_str(stdscr, win).strip().lower()
                     if val != "male" and val != "female":
                         raise ValueError
                 except ValueError:
@@ -248,7 +258,7 @@ class HospitalManagementSystem:
                     stdscr.move(rows // 4 + 5, columns // 4 + 26)
                     win.move(6, 27)
                     win.refresh()
-                    val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip()
+                    val = hc.helper_functions.take_str(stdscr, win).strip()
                     v = validate_email(val)
                     val = v["email"]
                 except EmailNotValidError:
@@ -271,7 +281,7 @@ class HospitalManagementSystem:
                     stdscr.move(rows // 4 + 6, columns // 4 + 26)
                     win.move(7, 27)
                     win.refresh()
-                    val = bd.pp.hc.helper_functions.take_str(stdscr, win)
+                    val = hc.helper_functions.take_str(stdscr, win)
                     if len(val) < 8:
                         raise ValueError
                 except ValueError:
@@ -294,7 +304,7 @@ class HospitalManagementSystem:
                     stdscr.move(rows // 4 + 7, columns // 4 + 26)
                     win.move(8, 27)
                     win.refresh()
-                    val = bd.pp.hc.helper_functions.take_str(stdscr, win)
+                    val = hc.helper_functions.take_str(stdscr, win)
                     for char in val:
                         if char < "0" or char > "9":
                             raise ValueError
@@ -315,11 +325,15 @@ class HospitalManagementSystem:
             if user == "doctor":
                 def get_specialization():
                     try:
-                        win.addstr(9, 5, f"Specialization:{(win_columns - len("Specialization:") - 5) * " "}", curses.A_BOLD)
+                        win.addstr(
+                            9, 5,
+                            f"Specialization:{(win_columns - len("Specialization:") - 5) * " "}",
+                            curses.A_BOLD
+                        )
                         stdscr.move(rows // 4 + 8, columns // 4 + 26)
                         win.move(9, 27)
                         win.refresh()
-                        val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip()
+                        val = hc.helper_functions.take_str(stdscr, win).strip()
                         if not val or val == "":
                             raise ValueError
                     except ValueError:
@@ -337,10 +351,10 @@ class HospitalManagementSystem:
 
                 specialization = get_specialization()
 
-                bd.pp.hc.helper_functions.display_success_message(win, "Registration Completed Successfully")
+                hc.helper_functions.display_success_message(win, "Registration Completed Successfully")
                 tm.sleep(3)
 
-                doctor = bd.pp.Doctor(name, age, gender, specialization)
+                doctor = pp.Doctor(name, age, gender, specialization)
                 doctor.add_contact_info("email", email)
                 doctor.add_contact_info("phone_number", number)
                 doctor.add_security_info("id", doctor.get_id())
@@ -348,11 +362,11 @@ class HospitalManagementSystem:
                 doctor.add_security_info("password", password)
                 return doctor
 
-            bd.pp.hc.helper_functions.display_success_message(win, "Registration Completed Successfully")
+            hc.helper_functions.display_success_message(win, "Registration Completed Successfully")
             tm.sleep(3)
 
             if user == "admin":
-                admin = bd.pp.Administrator(name, age, gender)
+                admin = pp.Administrator(name, age, gender)
                 admin.add_contact_info("email", email)
                 admin.add_contact_info("phone_number", number)
                 admin.add_security_info("id", admin.get_id())
@@ -361,7 +375,7 @@ class HospitalManagementSystem:
                 return admin
 
             elif user == "nurse":
-                nurse = bd.pp.Nurse(name, age, gender)
+                nurse = pp.Nurse(name, age, gender)
                 nurse.add_contact_info("email", email)
                 nurse.add_contact_info("phone_number", number)
                 nurse.add_security_info("id", nurse.get_id())
@@ -370,7 +384,7 @@ class HospitalManagementSystem:
                 return nurse
 
             elif user == "patient":
-                patient = bd.pp.Patient(name, age, gender)
+                patient = pp.Patient(name, age, gender)
                 patient.add_contact_info("email", email)
                 patient.add_contact_info("phone_number", number)
                 patient.add_security_info("id", patient.get_id())
@@ -402,11 +416,15 @@ class HospitalManagementSystem:
             if building == "department":
                 def get_name():
                     try:
-                        win.addstr(3, 5, f"Department Name:{(win_columns - len("Department Name:") - 5) * " "}", curses.A_BOLD)
+                        win.addstr(
+                            3, 5,
+                            f"Department Name:{(win_columns - len("Department Name:") - 5) * " "}",
+                            curses.A_BOLD
+                        )
                         stdscr.move(rows // 4 + 2, columns // 4 + 26)
                         win.move(3, 27)
                         win.refresh()
-                        val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip()
+                        val = hc.helper_functions.take_str(stdscr, win).strip()
                         if not val or val == "":
                             raise ValueError
                     except ValueError:
@@ -426,11 +444,15 @@ class HospitalManagementSystem:
 
                 def get_services_offered():
                     try:
-                        win.addstr(4, 5, f"Services Offered:{(win_columns - len("Services Offered:") - 5) * " "}", curses.A_BOLD)
+                        win.addstr(
+                            4, 5,
+                            f"Services Offered:{(win_columns - len("Services Offered:") - 5) * " "}",
+                            curses.A_BOLD
+                        )
                         stdscr.move(rows // 4 + 3, columns // 4 + 26)
                         win.move(4, 27)
                         win.refresh()
-                        val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip()
+                        val = hc.helper_functions.take_str(stdscr, win).strip()
                         if not val or val == "":
                             raise ValueError
                     except ValueError:
@@ -450,7 +472,7 @@ class HospitalManagementSystem:
                 for i in range(len(services_offered)):
                     services_offered[i] = services_offered[i].strip()
 
-                bd.pp.hc.helper_functions.display_success_message(win, "Department Added Successfully")
+                hc.helper_functions.display_success_message(win, "Department Added Successfully")
                 tm.sleep(3)
 
                 department = bd.Department(name, services_offered)
@@ -459,12 +481,15 @@ class HospitalManagementSystem:
             elif building == "pharmacy":
                 def get_pharmacy_name():
                     try:
-                        win.addstr(3, 5, f"Pharmacy Name:{(win_columns - len("Pharmacy Name:") - 5) * " "}",
-                                   curses.A_BOLD)
+                        win.addstr(
+                            3, 5,
+                            f"Pharmacy Name:{(win_columns - len("Pharmacy Name:") - 5) * " "}",
+                            curses.A_BOLD
+                        )
                         stdscr.move(rows // 4 + 2, columns // 4 + 26)
                         win.move(3, 27)
                         win.refresh()
-                        val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip()
+                        val = hc.helper_functions.take_str(stdscr, win).strip()
                         if not val or val == "":
                             raise ValueError
                     except ValueError:
@@ -484,12 +509,15 @@ class HospitalManagementSystem:
 
                 def get_pharmacist_name():
                     try:
-                        win.addstr(4, 5, f"Pharmacist Name:{(win_columns - len("Pharmacist Name:") - 5) * " "}",
-                                   curses.A_BOLD)
+                        win.addstr(
+                            4, 5,
+                            f"Pharmacist Name:{(win_columns - len("Pharmacist Name:") - 5) * " "}",
+                            curses.A_BOLD
+                        )
                         stdscr.move(rows // 4 + 3, columns // 4 + 26)
                         win.move(4, 27)
                         win.refresh()
-                        val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip()
+                        val = hc.helper_functions.take_str(stdscr, win).strip()
                         if not val or val == "":
                             raise ValueError
                     except ValueError:
@@ -507,7 +535,7 @@ class HospitalManagementSystem:
 
                 pharmacist_name = get_pharmacist_name()
 
-                bd.pp.hc.helper_functions.display_success_message(win, "Pharmacy Added Successfully")
+                hc.helper_functions.display_success_message(win, "Pharmacy Added Successfully")
                 tm.sleep(3)
 
                 pharmacy = bd.Pharmacy(pharmacy_name, pharmacist_name)
@@ -521,11 +549,14 @@ class HospitalManagementSystem:
                         stdscr.move(rows // 4 + 2, columns // 4 + 26)
                         win.move(3, 27)
                         win.refresh()
-                        val = bd.pp.hc.helper_functions.take_str(stdscr, win).strip()
+                        val = hc.helper_functions.take_str(stdscr, win).strip()
                         if val not in ["ICU", "General", "Private"]:
                             raise ValueError
                     except ValueError:
-                        win.addstr(win_rows - 1, 0, "!!ERROR: Enter a valid type [ICU, General, Private]!!", red_and_black)
+                        win.addstr(
+                            win_rows - 1, 0,
+                            "!!ERROR: Enter a valid type [ICU, General, Private]!!", red_and_black
+                        )
                         win.refresh()
                         return get_room_type()
                     except Exception as e:
@@ -539,10 +570,126 @@ class HospitalManagementSystem:
 
                 room_type = get_room_type()
 
-                bd.pp.hc.helper_functions.display_success_message(win, "Ward Added Successfully")
+                hc.helper_functions.display_success_message(win, "Ward Added Successfully")
                 tm.sleep(3)
 
                 ward = bd.Ward(room_type)
                 return ward
 
         return wrapper(run)
+
+    @staticmethod
+    def generate_bill():
+        def run(stdscr):
+            curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+            curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+            red_and_black = curses.color_pair(2)
+            green_and_black = curses.color_pair(3)
+
+            rows, columns = stdscr.getmaxyx()
+
+            win = curses.newwin(rows // 2, columns // 2, rows // 4 - 1, columns // 4 - 1)
+            win_rows, win_columns = win.getmaxyx()
+            win.clear()
+
+            if "patients" not in pp.persons:
+                hc.helper_functions.display_error(
+                    win,
+                    "No Patients Yet"
+                )
+                tm.sleep(3)
+                return
+
+            win.addstr(0, 0, "Enter Patient ID, Treatment Cost and Medicine Cost:", curses.A_BOLD | green_and_black)
+            win.addstr(1, 0, "---------------------------------------------------", curses.A_BOLD | green_and_black)
+
+            curses.curs_set(1)
+
+            def get_patient():
+                try:
+                    win.addstr(3, 5, f"Patient ID:{(win_columns-len("Patient ID:")-5) * " "}", curses.A_BOLD)
+                    stdscr.move(rows // 4 + 2, columns // 4 + 26)
+                    win.move(3, 27)
+                    win.refresh()
+                    val = hc.helper_functions.take_str(stdscr, win).strip()
+                    if not val or val == "":
+                        raise ValueError
+                    p = None
+                    for pat in pp.persons["patients"]:
+                        if pat.get_id() == val:
+                            p = pat
+                            break
+                    if p is None:
+                        raise ValueError
+                except ValueError:
+                    win.addstr(win_rows-1, 0, "!!ERROR: Can't Find This Patient!!", red_and_black)
+                    win.refresh()
+                    return get_patient()
+                except Exception as e:
+                    win.addstr(win_rows - 1, 0, f"!!UNEXPECTED ERROR: {e}!!", red_and_black)
+                    win.refresh()
+                    return get_patient()
+                else:
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.refresh()
+                    return p
+            patient = get_patient()
+
+            def get_treatment_cost():
+                try:
+                    win.addstr(4, 5, f"Treatment Cost:{(win_columns-len("Treatment Cost:")-5) * " "}", curses.A_BOLD)
+                    stdscr.move(rows // 4 + 3, columns // 4 + 26)
+                    win.move(4, 27)
+                    win.refresh()
+                    val = int(hc.helper_functions.take_str(stdscr, win).strip())
+                    if val <= 0 :
+                        raise ValueError
+                except ValueError:
+                    win.addstr(win_rows-1, 0, "!!ERROR: Enter a treatment cost!!", red_and_black)
+                    win.refresh()
+                    return get_treatment_cost()
+                except Exception as e:
+                    win.addstr(win_rows - 1, 0, f"!!UNEXPECTED ERROR: {e}!!", red_and_black)
+                    win.refresh()
+                    return get_treatment_cost()
+                else:
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.refresh()
+                    return val
+            treatment_cost = get_treatment_cost()
+
+            def get_medicine_cost():
+                try:
+                    win.addstr(
+                        5, 5,
+                        f"Medicine Cost:{(win_columns-len("Medicine Cost:")-5) * " "}",
+                        curses.A_BOLD
+                    )
+                    stdscr.move(rows // 4 + 4, columns // 4 + 26)
+                    win.move(5, 27)
+                    win.refresh()
+                    val = int(hc.helper_functions.take_str(stdscr, win).strip())
+                    if val <= 0:
+                        raise ValueError
+                except ValueError:
+                    win.addstr(win_rows-1, 0, "!!ERROR: Enter a medicine cost!!", red_and_black)
+                    win.refresh()
+                    return get_medicine_cost()
+                except Exception as e:
+                    win.addstr(win_rows - 1, 0, f"!!UNEXPECTED ERROR: {e}!!", red_and_black)
+                    win.refresh()
+                    return get_medicine_cost()
+                else:
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.refresh()
+                    return val
+            medicine_cost = get_medicine_cost()
+
+            bill = hc.Billing(patient, treatment_cost, medicine_cost)
+            hc.bills.append(bill)
+
+            hc.helper_functions.display_success_message(win, "Bill Generated Successfully")
+            sender.send_message(f"Admin [ID: {current_user.get_id()}] Generated a Bill")
+            tm.sleep(3)
+
+        wrapper(run)

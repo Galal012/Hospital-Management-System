@@ -1,5 +1,4 @@
 import sqlite3
-from typing import Optional
 
 
 # Database connection singleton
@@ -75,7 +74,7 @@ class DBHandler:
         conn.commit()
 
     @staticmethod
-    def get_db_id(table: str, app_id: str) -> Optional[int]:
+    def get_db_id(table: str, app_id: str):
         """Get database ID from application-generated ID"""
         conn = DatabaseConnection.get_db_connection()
         cursor = conn.cursor()

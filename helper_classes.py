@@ -1,12 +1,11 @@
-from datetime import datetime
-
 import curses
 from curses import wrapper
 from curses.textpad import rectangle
+from datetime import datetime
 
-import sqlfunctions as sqf
 
 appointments = list()
+bills = list()
 
 class helper_functions:
     @staticmethod
@@ -143,7 +142,12 @@ class helper_functions:
 
         rows, columns = stdscr.getmaxyx()
 
-        win = curses.newwin(min(rows // 4, (rows - (rows // 4 + strt))-1), columns // 2, rows // 4 + strt, columns // 4 - 1)
+        win = curses.newwin(
+            min(rows // 4,(rows - (rows // 4 + strt))-1),
+            columns // 2,
+            rows // 4 + strt,
+            columns // 4 - 1
+        )
         win.clear()
 
         win.addstr(0, 0, message, curses.A_BOLD | green_and_black)
@@ -239,7 +243,6 @@ class Appointment:
         appointments.remove(self)
 
 
-
 class MedicalRecord:
     __number_of_records = 0
 
@@ -253,38 +256,21 @@ class MedicalRecord:
         self._test_results = test_results
         self._date = date
         self._time = time
-        self._data = {
-            "record_id": self._id,
-            "patient": self._patient,
-            "doctor": self._doctor,
-            "diagnosis": self._diagnosis,
-            "prescribed_treatment": self._prescribed_treatment,
-            "test_results": self._test_results,
-            "date": self._date,
-            "time": self._time
-        }
 
     def get_record_id(self):
         return self._id
-
     def get_patient(self):
         return self._patient
-
     def get_doctor(self):
         return self._doctor
-
     def get_diagnosis(self):
         return self._diagnosis
-
     def get_prescribed_treatment(self):
         return self._prescribed_treatment
-
     def get_test_results(self):
         return self._test_results
-
     def get_date(self):
         return self._date
-
     def get_time(self):
         return self._time
 
@@ -292,67 +278,35 @@ class MedicalRecord:
     def get_number_of_records() -> int:
         return MedicalRecord.__number_of_records
 
-    def update_record(self, diagnosis=None, prescribed_treatment=None, test_results=None, date=None, time=None) -> None:
-        if diagnosis:
-            self._diagnosis = diagnosis
-        if prescribed_treatment:
-            self._prescribed_treatment = prescribed_treatment
-        if test_results:
-            self._test_results = test_results
-        if date:
-            self._date = date
-        if time:
-            self._time = time
 
-    def view_record(self):
-        return self._data
-
-    def delete_record(self) -> None:
-        del self._data
-        self._record_id = None
-        self._patient = None
-        self._doctor = None
-        self._diagnosis = None
-        self._prescribed_treatment = None
-        self._test_results = None
-        self._date = None
-        self._time = None
-
-
-class Billing():
+class Billing:
     __number_of_bills = 0
 
-    def __init__(self, patient, treatment_cost, medicine_cost, total_amount, payment_status) -> None:
+    def __init__(self, patient, treatment_cost, medicine_cost) -> None:
         Billing.__number_of_bills += 1
-        self._id = helper_functions.generate_id("BIL", Appointment.get_number_of_bills())
+        self._id = helper_functions.generate_id("BIL", Billing.get_number_of_bills())
         self._patient = patient
         self._treatment_cost = treatment_cost
         self._medicine_cost = medicine_cost
-        self._total_amount = total_amount
-        self._payment_status = payment_status
-        self._data = {
-            "bill_id": self._id,
-            "patient": self._patient,
-            "treatment_cost": self._treatment_cost,
-            "medicine_cost": self._medicine_cost,
-            "total_amount": self._total_amount,
-            "payment_status": self._payment_status
-        }
+        self._total_cost = treatment_cost + medicine_cost
+        self._payment_status = "Pending"
+
+    def get_id(self):
+        return self._id
+    def get_patient(self):
+        return self._patient
+    def get_treatment_cost(self):
+        return self._treatment_cost
+    def get_medicine_cost(self):
+        return self._medicine_cost
+    def get_total_cost(self):
+        return self._total_cost
+    def get_payment_status(self):
+        return self._payment_status
+
+    def process_payment(self):
+        self._payment_status = "Completed"
 
     @staticmethod
     def get_number_of_bills() -> int:
         return Billing.__number_of_bills
-
-    def generate_bill(self) -> float:
-        self._total_amount = self._treatment_cost + self._medicine_cost
-        return self._total_amount
-
-    def process_payment(self, amount):
-        if amount >= self._total_amount:
-            self._payment_status = "Paid"
-            return "Payment successful"
-        else:
-            return "Insufficient payment"
-
-    def view_bill_details(self):
-        return self._data

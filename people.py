@@ -1,8 +1,10 @@
-import time as tm
 import curses
 from curses import wrapper
-from typing import Dict, List
+import time as tm
+
 import helper_classes as hc
+import sqlfunctions as sqf
+import sender
 
 persons = dict()
 buildings = dict()
@@ -22,19 +24,14 @@ class Person:
 
     def get_name(self) -> str:
         return self._name
-
     def get_age(self) -> int:
         return self._age
-
     def get_gender(self) -> str:
         return self._gender
-
-    def get_contact_info(self) -> Dict:
+    def get_contact_info(self) -> dict:
         return self._contact_info
-
-    def get_security_info(self) -> Dict:
+    def get_security_info(self) -> dict:
         return self._security_info
-
     def get_id(self) -> str:
         return self._id
 
@@ -44,16 +41,12 @@ class Person:
 
     def set_name(self, name: str) -> None:
         self._name = name
-
     def set_age(self, age: int) -> None:
         self._age = age if age >= 0 else ValueError('Age not valid')
-
     def set_gender(self, gender: str) -> None:
         self._gender = gender
-
     def add_contact_info(self, key: str, value: str) -> None:
         self._contact_info[key] = value
-
     def add_security_info(self, key: str, value: str) -> None:
         self._security_info[key] = value
 
@@ -76,10 +69,8 @@ class Patient(Person):
 
     def get_diagnosis(self) -> str:
         return self._diagnosis
-
     def get_prescribed_treatment(self) -> str:
         return self._prescribed_treatment
-
     def get_assigned_doctor(self) -> str:
         return self._assigned_doctor
 
@@ -140,22 +131,19 @@ class Patient(Person):
             appointment.schedule_appointment()
 
             hc.helper_functions.display_success_message(win, "Appointment Booked Successfully")
+            sender.send_message(
+                f"Patient [ID: {self.get_id()}] Booked an Appointment"
+            )
             tm.sleep(3)
 
         wrapper(run)
 
-    def get_patient_info(self) -> tuple[str, int, str, str, str]:
-        return self.get_name(), self.get_age(), self.get_gender(), self.get_diagnosis(), self.get_prescribed_treatment()
-
     def set_diagnosis(self, diagnosis: str) -> None:
         self._diagnosis = diagnosis
-
     def set_prescribed_treatment(self, prescribed_treatment: str) -> None:
         self._prescribed_treatment = prescribed_treatment
-
     def set_assigned_doctor(self, doctor) -> None:
         self._assigned_doctor = doctor
-
     def add_medical_record(self, record):
         self._medical_history.append(record)
 
@@ -172,7 +160,6 @@ class Doctor(Person):
 
     def get_specialization(self) -> str:
         return self._specialization
-
     def get_patient_list(self) -> list:
         return self._patients_list
 
@@ -193,7 +180,7 @@ class Doctor(Person):
             if appointment is not None:
                 appointment.set_doctor(self)
 
-            conn = hc.sqf.DatabaseConnection.get_db_connection()
+            conn = sqf.DatabaseConnection.get_db_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT patient_list FROM Doctor WHERE app_id = ?", (self.get_id(),))
             result = cursor.fetchone()[0]
@@ -216,7 +203,7 @@ class Doctor(Person):
             hc.helper_functions.display_error(win, "Can't Find This Patient")
             tm.sleep(3)
         else:
-            conn = hc.sqf.DatabaseConnection.get_db_connection()
+            conn = sqf.DatabaseConnection.get_db_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT patient_list FROM Doctor WHERE app_id = ?", (self.get_id(),))
             pat_list = cursor.fetchone()[0].split(":")
@@ -232,6 +219,9 @@ class Doctor(Person):
             self._patients_list[idx].set_assigned_doctor(str())
             del self._patients_list[idx]
             hc.helper_functions.display_success_message(win, "Patient Removed Successfully")
+            sender.send_message(
+                f"Doctor [ID: {self.get_id()}] Removed a Patient"
+            )
             tm.sleep(3)
 
     def view_patients_list(self):
@@ -270,19 +260,22 @@ class Doctor(Person):
 
                     label = "Diagnosis:"
                     win.addstr(8, 5, label, curses.A_BOLD)
-                    stdscr.move(rows // 4 + 7, columns // 4 + len(label) + 5)
+                    stdscr.move(rows // 4 + 8, columns // 4 + len(label) + 5)
                     win.move(8, len(label) + 6)
                     win.refresh()
 
                     diagnosis = hc.helper_functions.take_str(stdscr, win)
                     patient.set_diagnosis(diagnosis)
 
-                    conn = hc.sqf.DatabaseConnection.get_db_connection()
+                    conn = sqf.DatabaseConnection.get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("UPDATE Patient SET diagnosis = ? WHERE app_id = ?", (diagnosis, patient_id,))
                     conn.commit()
 
                     hc.helper_functions.display_success_message(win, "Patient Diagnosed Successfully")
+                    sender.send_message(
+                        f"Doctor [ID: {self.get_id()}] Diagnosed a Patient"
+                    )
                     tm.sleep(3)
 
                 wrapper(run)
@@ -307,19 +300,28 @@ class Doctor(Person):
 
                     label = "Treatment:"
                     win.addstr(8, 5, label, curses.A_BOLD)
-                    stdscr.move(rows // 4 + 7, columns // 4 + len(label) + 5)
+                    stdscr.move(rows // 4 + 8, columns // 4 + len(label) + 5)
                     win.move(8, len(label) + 6)
                     win.refresh()
 
                     treatment = hc.helper_functions.take_str(stdscr, win)
                     patient.set_prescribed_treatment(treatment)
 
-                    conn = hc.sqf.DatabaseConnection.get_db_connection()
+                    conn = sqf.DatabaseConnection.get_db_connection()
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE Patient SET prescribed_treatment = ? WHERE app_id = ?", (treatment, patient_id,))
+                    cursor.execute(
+                        "UPDATE Patient SET prescribed_treatment = ? WHERE app_id = ?",
+                        (treatment, patient_id,)
+                    )
                     conn.commit()
 
-                    hc.helper_functions.display_success_message(win, "Treatment Prescribed Successfully")
+                    hc.helper_functions.display_success_message(
+                        win,
+                        "Treatment Prescribed Successfully"
+                    )
+                    sender.send_message(
+                        f"Doctor [ID: {self.get_id()}] Prescribed Medication"
+                    )
                     tm.sleep(3)
 
                 wrapper(run)
@@ -344,7 +346,7 @@ class Doctor(Person):
 
                     label = "Test Results:"
                     win.addstr(8, 5, label, curses.A_BOLD)
-                    stdscr.move(rows // 4 + 7, columns // 4 + len(label) + 5)
+                    stdscr.move(rows // 4 + 8, columns // 4 + len(label) + 5)
                     win.move(8, len(label) + 6)
                     win.refresh()
 
@@ -361,9 +363,15 @@ class Doctor(Person):
                         time
                     )
                     patient.add_medical_record(record)
-                    hc.sqf.DBHandler.insert_medical_record(record, patient_id)
+                    sqf.DBHandler.insert_medical_record(record, patient_id)
 
-                    hc.helper_functions.display_success_message(win, "Patient Record Added Successfully")
+                    hc.helper_functions.display_success_message(
+                        win,
+                        "Patient Record Added Successfully"
+                    )
+                    sender.send_message(
+                        f"Doctor [ID: {self.get_id()}] Added a Patient Record"
+                    )
                     tm.sleep(3)
 
                 wrapper(run)
@@ -402,8 +410,7 @@ class Nurse(Person):
     def assist_doctor(self, doctor):
         self._assisted_doctor = doctor
 
-    @staticmethod
-    def update_patient_statues(win, patient_id):
+    def update_patient_statues(self, win, patient_id):
         appointment = None
         for app in hc.appointments:
             if app.get_patient().get_id() == patient_id:
@@ -432,6 +439,9 @@ class Nurse(Person):
                 appointment.set_status(status)
 
                 hc.helper_functions.display_success_message(win, "Status Updated Successfully")
+                sender.send_message(
+                    f"Nurse [ID: {self.get_id()}] Updated a Patient Status"
+                )
                 tm.sleep(3)
 
             wrapper(run)
@@ -441,14 +451,16 @@ class Nurse(Person):
         tm.sleep(3)
 
 
-
 class Administrator(Person):
     __number_of_administrator: int = 0
 
     def __init__(self, name: str, age: int, gender: str):
         super().__init__(name, age, gender)
         Administrator.__number_of_administrator += 1
-        self._id: str = hc.helper_functions.generate_id("ADM", Administrator.get_number_of_administrators())
+        self._id: str = hc.helper_functions.generate_id(
+            "ADM",
+            Administrator.get_number_of_administrators()
+        )
 
     @staticmethod
     def get_number_of_administrators() -> int:
@@ -459,10 +471,9 @@ class Administrator(Person):
         if "doctors" not in persons:
             persons["doctors"] = list()
         persons["doctors"].append(doctor)
-        hc.sqf.DBHandler.insert_doctor(doctor)
+        sqf.DBHandler.insert_doctor(doctor)
 
-    @staticmethod
-    def remove_doctor(win, doctor_id) -> None:
+    def remove_doctor(self, win, doctor_id) -> None:
         idx = -1
         if "doctors" not in persons:
             hc.helper_functions.display_error(win, "Can't Find This Doctor")
@@ -479,6 +490,7 @@ class Administrator(Person):
         else:
             del persons["doctors"][idx]
             hc.helper_functions.display_success_message(win, "Doctor Removed Successfully")
+            sender.send_message(f"Admin [ID: {self.get_id()}] Removed a Doctor")
 
         tm.sleep(3)
 
@@ -488,39 +500,3 @@ class Administrator(Person):
             f"{self.get_name()} is managing hospital operations."
         )
         tm.sleep(3)
-
-# iam testing braah
-# doctor1 = Doctor("Jane Smith", 40, "Female", "Cardiology")
-# patient1 = Patient("Galal Mohamed ", 1, "Male")
-# patient1.set_diagnosis("Malaria")
-# patient1.set_prescribed_treatment("Panadol")
-# patient1.set_assigned_doctor(doctor1.get_name())
-# medical_record = MedicalRecord(patient1, doctor1, patient1.get_diagnosis(), patient1.get_prescribed_treatment(), "Success")
-# patient1.add_medical_record(medical_record)
-# patient1.add_medical_record(medical_record)
-# patient1.add_medical_record(medical_record)
-# patient1.view_medical_history()
-# print(patient1)
-# print(f"Patient ID: {patient1.get_id()}")
-# doctor1.add_patient(patient1)
-# doctor1.view_patients_list()
-# print(f"Doctor ID: {doctor1.get_id()}")
-# nurse1 = Nurse("Mark Johnson", 28, "Male", "Emergency")
-# print(f"Nurse ID: {nurse1.get_id()}")
-# admin = Administrator("Galal", 18, "male")
-# admin.add_security_info("email", "galal@gmail.com")
-# admin.add_security_info("password", "12345678")
-# persons["admins"] = list()
-# persons["admins"].append(admin)
-#
-# doctor = Doctor("Naglaa", 22, "female", "Eyes")
-# doctor.add_security_info("email", "naglaa@gmail.com")
-# doctor.add_security_info("password", "12345678")
-# persons["doctors"] = list()
-# persons["doctors"].append(doctor)
-#
-# patient1 = Patient("mohamed", 15, "male")
-# patient1.add_security_info("email", "mohamed@gamil.com")
-# patient1.add_security_info("password", "12345678")
-# persons["patients"] = list()
-# persons["patients"].append(patient1)
