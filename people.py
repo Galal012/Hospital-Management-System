@@ -3,14 +3,17 @@ from curses import wrapper
 import time as tm
 
 import helper_classes as hc
-import sqlfunctions as sqf
-import sender
 
+# In-memory storage for system entities, managed by data_manager.py
 persons = dict()
 buildings = dict()
 
 
 class Person:
+    """
+    Base class representing a generic person in the hospital system.
+    Handles common attributes like name, age, gender, and contact info.
+    """
     __number_of_persons: int = 0
 
     def __init__(self, name: str, age: int, gender: str) -> None:
@@ -52,6 +55,10 @@ class Person:
 
 
 class Patient(Person):
+    """
+    Represents a hospital patient. 
+    Tracks medical history, diagnoses, and appointment bookings.
+    """
     __number_of_patients: int = 0
 
     def __init__(self, name: str, age: int, gender: str):
@@ -74,7 +81,7 @@ class Patient(Person):
     def get_assigned_doctor(self) -> str:
         return self._assigned_doctor
 
-    def view_medical_history(self) -> None:
+    def view_patient_records(self) -> None:
         hc.helper_functions.display_page_heading("Patient Records Page")
 
         def run(stdscr):
@@ -116,7 +123,7 @@ class Patient(Person):
             win.clear()
 
             win.addstr(0, 0, "Enter The Symptoms:", curses.A_BOLD | green_and_black)
-            win.addstr(2, 0, f"{len("Enter The Symptoms:") * "-"}", curses.A_BOLD | green_and_black)
+            win.addstr(2, 0, f"{len('Enter The Symptoms:') * '-'}", curses.A_BOLD | green_and_black)
 
             curses.curs_set(1)
 
@@ -131,9 +138,6 @@ class Patient(Person):
             appointment.schedule_appointment()
 
             hc.helper_functions.display_success_message(win, "Appointment Booked Successfully")
-            sender.send_message(
-                f"Patient [ID: {self.get_id()}] Booked an Appointment"
-            )
             tm.sleep(3)
 
         wrapper(run)
@@ -149,6 +153,10 @@ class Patient(Person):
 
 
 class Doctor(Person):
+    """
+    Represents a doctor.
+    Manages an assigned list of patients, diagnoses, and medical prescriptions.
+    """
     __number_of_doctors: int = 0
 
     def __init__(self, name: str, age: int, gender: str, specialization: str) -> None:
@@ -180,17 +188,6 @@ class Doctor(Person):
             if appointment is not None:
                 appointment.set_doctor(self)
 
-            conn = sqf.DatabaseConnection.get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT patient_list FROM Doctor WHERE app_id = ?", (self.get_id(),))
-            result = cursor.fetchone()[0]
-
-            result += f":{patient.get_id()}"
-            if result[0] == ":":
-                result = result[1:]
-            cursor.execute("UPDATE Doctor SET patient_list = ? WHERE app_id = ?", (result, self.get_id(),))
-            conn.commit()
-
     def remove_patient(self, win, patient_id) -> None:
         idx = -1
 
@@ -203,25 +200,9 @@ class Doctor(Person):
             hc.helper_functions.display_error(win, "Can't Find This Patient")
             tm.sleep(3)
         else:
-            conn = sqf.DatabaseConnection.get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT patient_list FROM Doctor WHERE app_id = ?", (self.get_id(),))
-            pat_list = cursor.fetchone()[0].split(":")
-            pat_list.remove(patient_id)
-            result = ""
-            for p in pat_list:
-                result += f"{p}:"
-            result = result[:-1]
-
-            cursor.execute("UPDATE Doctor SET patient_list = ? WHERE app_id = ?", (result, self.get_id(),))
-            conn.commit()
-
             self._patients_list[idx].set_assigned_doctor(str())
             del self._patients_list[idx]
             hc.helper_functions.display_success_message(win, "Patient Removed Successfully")
-            sender.send_message(
-                f"Doctor [ID: {self.get_id()}] Removed a Patient"
-            )
             tm.sleep(3)
 
     def view_patients_list(self):
@@ -254,7 +235,7 @@ class Doctor(Person):
                     rows, columns = stdscr.getmaxyx()
 
                     win.addstr(5, 0, "Enter Diagnosis:", curses.A_BOLD | green_and_black)
-                    win.addstr(6, 0, f"{len("Enter Diagnosis:") * "-"}", curses.A_BOLD | green_and_black)
+                    win.addstr(6, 0, f"{len('Enter Diagnosis:') * '-'}", curses.A_BOLD | green_and_black)
 
                     curses.curs_set(1)
 
@@ -267,15 +248,7 @@ class Doctor(Person):
                     diagnosis = hc.helper_functions.take_str(stdscr, win)
                     patient.set_diagnosis(diagnosis)
 
-                    conn = sqf.DatabaseConnection.get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE Patient SET diagnosis = ? WHERE app_id = ?", (diagnosis, patient_id,))
-                    conn.commit()
-
                     hc.helper_functions.display_success_message(win, "Patient Diagnosed Successfully")
-                    sender.send_message(
-                        f"Doctor [ID: {self.get_id()}] Diagnosed a Patient"
-                    )
                     tm.sleep(3)
 
                 wrapper(run)
@@ -294,7 +267,7 @@ class Doctor(Person):
                     rows, columns = stdscr.getmaxyx()
 
                     win.addstr(5, 0, "Enter Treatment:", curses.A_BOLD | green_and_black)
-                    win.addstr(6, 0, f"{len("Enter Treatment:") * "-"}", curses.A_BOLD | green_and_black)
+                    win.addstr(6, 0, f"{len('Enter Treatment:') * '-'}", curses.A_BOLD | green_and_black)
 
                     curses.curs_set(1)
 
@@ -307,20 +280,9 @@ class Doctor(Person):
                     treatment = hc.helper_functions.take_str(stdscr, win)
                     patient.set_prescribed_treatment(treatment)
 
-                    conn = sqf.DatabaseConnection.get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "UPDATE Patient SET prescribed_treatment = ? WHERE app_id = ?",
-                        (treatment, patient_id,)
-                    )
-                    conn.commit()
-
                     hc.helper_functions.display_success_message(
                         win,
                         "Treatment Prescribed Successfully"
-                    )
-                    sender.send_message(
-                        f"Doctor [ID: {self.get_id()}] Prescribed Medication"
                     )
                     tm.sleep(3)
 
@@ -340,7 +302,7 @@ class Doctor(Person):
                     rows, columns = stdscr.getmaxyx()
 
                     win.addstr(5, 0, "Enter Test Results:", curses.A_BOLD | green_and_black)
-                    win.addstr(6, 0, f"{len("Enter Test Results:") * "-"}", curses.A_BOLD | green_and_black)
+                    win.addstr(6, 0, f"{len('Enter Test Results:') * '-'}", curses.A_BOLD | green_and_black)
 
                     curses.curs_set(1)
 
@@ -363,14 +325,10 @@ class Doctor(Person):
                         time
                     )
                     patient.add_medical_record(record)
-                    sqf.DBHandler.insert_medical_record(record, patient_id)
 
                     hc.helper_functions.display_success_message(
                         win,
                         "Patient Record Added Successfully"
-                    )
-                    sender.send_message(
-                        f"Doctor [ID: {self.get_id()}] Added a Patient Record"
                     )
                     tm.sleep(3)
 
@@ -383,7 +341,7 @@ class Doctor(Person):
     def view_patient_records(self, win, patient_id: str):
         for patient in self._patients_list:
             if patient.get_id() == patient_id:
-                patient.view_medical_history()
+                patient.view_patient_records()
                 return
 
         hc.helper_functions.display_error(win, "Can't Find This Patient")
@@ -391,6 +349,10 @@ class Doctor(Person):
 
 
 class Nurse(Person):
+    """
+    Represents a nurse.
+    Handles ward assignments, assists doctors, and updates patient appointment statuses.
+    """
     __number_of_nurses: int = 0
 
     def __init__(self, name: str, age: int, gender: str):
@@ -425,7 +387,7 @@ class Nurse(Person):
                 rows, columns = stdscr.getmaxyx()
 
                 win.addstr(5, 0, "Enter Status:", curses.A_BOLD | green_and_black)
-                win.addstr(6, 0, f"{len("Enter Status:") * "-"}", curses.A_BOLD | green_and_black)
+                win.addstr(6, 0, f"{len('Enter Status:') * '-'}", curses.A_BOLD | green_and_black)
 
                 curses.curs_set(1)
 
@@ -439,9 +401,6 @@ class Nurse(Person):
                 appointment.set_status(status)
 
                 hc.helper_functions.display_success_message(win, "Status Updated Successfully")
-                sender.send_message(
-                    f"Nurse [ID: {self.get_id()}] Updated a Patient Status"
-                )
                 tm.sleep(3)
 
             wrapper(run)
@@ -452,6 +411,10 @@ class Nurse(Person):
 
 
 class Administrator(Person):
+    """
+    Represents a system administrator.
+    Responsible for high-level operations like adding/removing doctors.
+    """
     __number_of_administrator: int = 0
 
     def __init__(self, name: str, age: int, gender: str):
@@ -471,7 +434,6 @@ class Administrator(Person):
         if "doctors" not in persons:
             persons["doctors"] = list()
         persons["doctors"].append(doctor)
-        sqf.DBHandler.insert_doctor(doctor)
 
     def remove_doctor(self, win, doctor_id) -> None:
         idx = -1
@@ -490,7 +452,6 @@ class Administrator(Person):
         else:
             del persons["doctors"][idx]
             hc.helper_functions.display_success_message(win, "Doctor Removed Successfully")
-            sender.send_message(f"Admin [ID: {self.get_id()}] Removed a Doctor")
 
         tm.sleep(3)
 

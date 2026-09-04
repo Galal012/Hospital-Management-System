@@ -3,63 +3,80 @@ from curses import wrapper
 from curses.textpad import rectangle
 from datetime import datetime
 
-
+# Global lists to hold system records, managed by data_manager.py
 appointments = list()
 bills = list()
 
 class helper_functions:
+    """
+    A collection of static utility methods for rendering curses UI elements 
+    such as menus, tables, input forms, and alerts.
+    """
+    
     @staticmethod
     def generate_id(prefix, counter) -> str:
         """
-        Generate a unique ID based on person type.
+        Generate a unique ID based on entity type.
         Format: [TYPE]-[YEAR]-[SEQUENCE]
         """
         year = datetime.now().year
-
         return f"{prefix}-{year}-{counter:04d}"
 
     @staticmethod
     def display_error(win, error: str) -> None:
-        curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
-        red_and_black = curses.color_pair(2)
-        win_rows, win_columns = win.getmaxyx()
-        curses.curs_set(0)
-        message = f"!!ERROR: {error}!!"
-        win.addstr(win_rows - 1, (win_columns - len(message)) // 2, message, red_and_black)
-        win.refresh()
+        """Renders a red error message at the bottom of the provided window."""
+        try:
+            curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+            red_and_black = curses.color_pair(2)
+            win_rows, win_columns = win.getmaxyx()
+            curses.curs_set(0)
+            message = f"!!ERROR: {error}!!"
+            win.addstr(win_rows - 1, (win_columns - len(message)) // 2, message, red_and_black)
+            win.refresh()
+        except curses.error:
+            pass
 
     @staticmethod
     def display_success_message(win, message: str) -> None:
-        curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
-        green_and_black = curses.color_pair(3)
-        win_rows, win_columns = win.getmaxyx()
-        curses.curs_set(0)
-        message = f"##### {message} #####"
-        win.addstr(win_rows - 1, (win_columns - len(message)) // 2, message, green_and_black)
-        win.refresh()
+        """Renders a green success message at the bottom of the provided window."""
+        try:
+            curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+            green_and_black = curses.color_pair(3)
+            win_rows, win_columns = win.getmaxyx()
+            curses.curs_set(0)
+            message = f"##### {message} #####"
+            win.addstr(win_rows - 1, (win_columns - len(message)) // 2, message, green_and_black)
+            win.refresh()
+        except curses.error:
+            pass
 
     @staticmethod
     def display_page_heading(message):
+        """Clears the screen and renders a formatted blue header at the top."""
         def run(stdscr):
-            curses.curs_set(0)
-            stdscr.clear()
-            curses.init_pair(1, curses.COLOR_BLUE, curses.COLOR_BLACK)
-            blue_and_black = curses.color_pair(1)
+            try:
+                curses.curs_set(0)
+                stdscr.clear()
+                curses.init_pair(1, curses.COLOR_BLUE, curses.COLOR_BLACK)
+                blue_and_black = curses.color_pair(1)
 
-            rows, columns = stdscr.getmaxyx()
+                rows, columns = stdscr.getmaxyx()
+                num_spaces = max(0, (columns - len(message)) // 2)
 
-            num_spaces = (columns - len(message)) // 2
-
-            stdscr.addstr(0, 0, columns * "=", blue_and_black)
-            stdscr.addstr(1, 0, f"{num_spaces * " "}{message}", blue_and_black)
-            stdscr.addstr(2, 0, columns * "=", blue_and_black)
-
-            stdscr.refresh()
-
+                stdscr.addstr(0, 0, columns * "=", blue_and_black)
+                stdscr.addstr(1, 0, f"{num_spaces * ' '}{message}", blue_and_black)
+                stdscr.addstr(2, 0, columns * "=", blue_and_black)
+                stdscr.refresh()
+            except curses.error:
+                pass
         wrapper(run)
 
     @staticmethod
     def display_get_options(options: list, prefix_message="") -> int:
+        """
+        Renders an interactive, navigable menu using arrow keys.
+        Returns the 1-based index of the selected option.
+        """
         def run(stdscr):
             curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
             curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
@@ -75,12 +92,12 @@ class helper_functions:
 
             def display_options():
                 for i in range(len(options)):
-                    win.addstr(2 + i, 5, f"{options[i]}{(27-len(options[i])) * " "}")
+                    win.addstr(2 + i, 5, f"{options[i]}{(27-len(options[i])) * ' '}")
 
             option = 0
             while True:
                 display_options()
-                win.addstr(2 + option, 5, f"{options[option]}{(27-len(options[option])) * " "}", curses.A_REVERSE)
+                win.addstr(2 + option, 5, f"{options[option]}{(27-len(options[option])) * ' '}", curses.A_REVERSE)
                 win.refresh()
 
                 key = stdscr.getkey()
@@ -101,6 +118,10 @@ class helper_functions:
 
     @staticmethod
     def take_str(stdscr, win):
+        """
+        Custom input handler for curses, capturing user keystrokes dynamically
+        while providing backspace support and bounds checking.
+        """
         curses.cbreak()
         stdscr.keypad(True)
         result = ""
@@ -108,7 +129,7 @@ class helper_functions:
             try:
                 char = stdscr.getkey()
 
-                if char == "\b":
+                if char in ("\b", "KEY_BACKSPACE", "\x7f"):
                     if len(result) > 0:
                         y, x = win.getyx()
                         sy, sx = win.getbegyx()
@@ -136,7 +157,8 @@ class helper_functions:
                 pass
 
     @staticmethod
-    def take_user_input(stdscr, message: str, label: str, strt=0) -> tuple[curses, str]:
+    def take_user_input(stdscr, message: str, label: str, strt=0) -> tuple[curses.window, str]:
+        """Renders a standard input prompt window and captures the user's string input."""
         curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
         green_and_black = curses.color_pair(3)
 
@@ -151,7 +173,7 @@ class helper_functions:
         win.clear()
 
         win.addstr(0, 0, message, curses.A_BOLD | green_and_black)
-        win.addstr(1, 0, f"{len(message) * "-"}", curses.A_BOLD | green_and_black)
+        win.addstr(1, 0, f"{len(message) * '-'}", curses.A_BOLD | green_and_black)
 
         curses.curs_set(1)
 
@@ -165,54 +187,64 @@ class helper_functions:
 
     @staticmethod
     def display_table(stdscr, start_row, label, headings, data, cols_width, stop=True):
-        curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
-        curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-        green_and_black = curses.color_pair(3)
-        yellow_and_black = curses.color_pair(5)
+        """
+        Dynamically renders a bordered table to the terminal with provided data.
+        Includes a failsafe to gracefully truncate rendering if the terminal window is too small.
+        """
+        try:
+            curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+            curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+            green_and_black = curses.color_pair(3)
+            yellow_and_black = curses.color_pair(5)
 
-        rows, columns = stdscr.getmaxyx()
-        width = sum(cols_width) + 2
-        height = 4 + len(data)
+            rows, columns = stdscr.getmaxyx()
+            width = sum(cols_width) + 2
+            height = 4 + len(data)
 
-        if len(data) == 0:
-            height += 1
+            if len(data) == 0:
+                height += 1
 
-        yb, xb, ye, xe = start_row, (columns - width) // 2, 6 + height - 1, (columns - width) // 2 + width - 1
-        stdscr.addstr(yb - 2, xb, label, green_and_black | curses.A_BOLD)
-        rectangle(stdscr, yb, xb, ye, xe)
-        stdscr.hline(yb + 2, xb + 1, curses.ACS_HLINE, width - 2)
+            yb, xb, ye, xe = start_row, (columns - width) // 2, 6 + height - 1, (columns - width) // 2 + width - 1
+            stdscr.addstr(yb - 2, xb, label, green_and_black | curses.A_BOLD)
+            rectangle(stdscr, yb, xb, ye, xe)
+            stdscr.hline(yb + 2, xb + 1, curses.ACS_HLINE, width - 2)
 
-        temp = xb + 1
-        for i in range(len(headings)):
-            stdscr.addstr(yb + 1, temp, headings[i], curses.A_BOLD)
-            temp += cols_width[i]
+            temp = xb + 1
+            for i in range(len(headings)):
+                stdscr.addstr(yb + 1, temp, headings[i], curses.A_BOLD)
+                temp += cols_width[i]
 
-        if len(data) == 0:
-            message = "NO Data YET!"
-            stdscr.addstr(yb + 3, xb + (width - len(message)) // 2, message)
+            if len(data) == 0:
+                message = "NO Data YET!"
+                stdscr.addstr(yb + 3, xb + (width - len(message)) // 2, message)
 
-        else:
-            line = yb + 3
-            for row in data:
-                col = xb + 1
-                for i in range(len(row)):
-                    stdscr.addstr(line, col, str(row[i]))
-                    col += cols_width[i]
-                line += 1
+            else:
+                line = yb + 3
+                for row in data:
+                    col = xb + 1
+                    for i in range(len(row)):
+                        stdscr.addstr(line, col, str(row[i]))
+                        col += cols_width[i]
+                    line += 1
 
-        if stop:
-            stdscr.addstr(
-                yb + height + 1,
-                xb + (width - len("Press any key to continue...")) // 2,
-                "Press any key to continue...",
-                yellow_and_black | curses.A_BOLD
-            )
-            curses.curs_set(1)
-            stdscr.refresh()
-            stdscr.getch()
+            if stop:
+                stdscr.addstr(
+                    yb + height + 1,
+                    xb + (width - len("Press any key to continue...")) // 2,
+                    "Press any key to continue...",
+                    yellow_and_black | curses.A_BOLD
+                )
+                curses.curs_set(1)
+                stdscr.refresh()
+                stdscr.getch()
+        except curses.error:
+            pass
 
 
 class Appointment:
+    """
+    Represents a patient appointment booking with status tracking.
+    """
     __number_of_appointments = 0
 
     def __init__(self, patient, symptoms) -> None:
@@ -244,6 +276,10 @@ class Appointment:
 
 
 class MedicalRecord:
+    """
+    Represents an immutable record of a patient's medical history, 
+    diagnoses, and test results.
+    """
     __number_of_records = 0
 
     def __init__(self, patient, doctor, diagnosis, prescribed_treatment, test_results, date, time) -> None:
@@ -280,6 +316,9 @@ class MedicalRecord:
 
 
 class Billing:
+    """
+    Represents a patient's financial bill, combining treatment and medicine costs.
+    """
     __number_of_bills = 0
 
     def __init__(self, patient, treatment_cost, medicine_cost) -> None:

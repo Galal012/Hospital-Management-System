@@ -6,107 +6,35 @@ from email_validator import validate_email, EmailNotValidError
 import buildings as bd
 import people as pp
 import helper_classes as hc
-import sqlfunctions as sqf
-import sender
 
+# Global state to track the actively logged-in session
 current_user = None
 
-
-class LoadFromDB:
-    @staticmethod
-    def load_patients():
-        patient_info = sqf.DBHandler.get_table("Patient")
-        for pat in patient_info:
-            patient = pp.Patient(pat[2], pat[3], pat[4])
-            contact_info = pat[5].split(",")
-            patient.add_contact_info("email", contact_info[0])
-            patient.add_contact_info("phone_number", contact_info[1])
-            security_info = pat[6].split(",")
-            patient.add_security_info("email", security_info[0])
-            patient.add_security_info("password", security_info[1])
-            patient.set_diagnosis(pat[7])
-            patient.set_prescribed_treatment(pat[8])
-            patient.set_assigned_doctor(pat[9])
-
-            if "patients" not in pp.persons:
-                pp.persons["patients"] = list()
-            pp.persons["patients"].append(patient)
-
-    @staticmethod
-    def load_doctors():
-        doctor_info = sqf.DBHandler.get_table("Doctor")
-        for doc in doctor_info:
-            doctor = pp.Doctor(doc[2], doc[3], doc[4], doc[7])
-            contact_info = doc[5].split(",")
-            doctor.add_contact_info("email", contact_info[0])
-            doctor.add_contact_info("phone_number", contact_info[1])
-            security_info = doc[6].split(",")
-            doctor.add_security_info("email", security_info[0])
-            doctor.add_security_info("password", security_info[1])
-            patient_list = doc[8].split(":")
-            for pat in pp.persons["patients"]:
-                if pat.get_id() in patient_list:
-                    doctor.add_patient(pat)
-
-            if "doctors" not in pp.persons:
-                pp.persons["doctors"] = list()
-            pp.persons["doctors"].append(doctor)
-
-    @staticmethod
-    def load_admins():
-        admin_info = sqf.DBHandler.get_table("Administrator")
-        for adm in admin_info:
-            admin = pp.Administrator(adm[2], adm[3], adm[4])
-            contact_info = adm[5].split(",")
-            admin.add_contact_info("email", contact_info[0])
-            admin.add_contact_info("phone_number", contact_info[1])
-            security_info = adm[6].split(",")
-            admin.add_security_info("email", security_info[0])
-            admin.add_security_info("password", security_info[1])
-
-            if "admins" not in pp.persons:
-                pp.persons["admins"] = list()
-            pp.persons["admins"].append(admin)
-
-    @staticmethod
-    def load_records():
-        record_info = sqf.DBHandler.get_table("MedicalRecord")
-        for record in record_info:
-            pat_id, doc_id = record[2], record[3]
-            patient, doctor = None, None
-            for pat in pp.persons["patients"]:
-                if pat.get_id() == pat_id:
-                    patient = pat
-                    break
-            for doc in pp.persons["doctors"]:
-                if doc.get_id() == doc_id:
-                    doctor = doc
-                    break
-
-            medical_record = hc.MedicalRecord(
-                patient, doctor, record[4], record[5],
-                record[6], record[7], record[8]
-            )
-            patient.add_medical_record(medical_record)
-
-
-
 class HospitalManagementSystem:
+    """
+    Core system class handling the Command-Line Interface (CLI) logic 
+    for authentication, registration, and high-level system operations.
+    """
+
     @staticmethod
     def display_starting_page(stdscr) -> None:
+        """Renders the initial welcome screen with the current date and time."""
         hc.helper_functions.display_page_heading("*** Welcome to Hospital Management System ***")
 
         blue_and_black = curses.color_pair(1)
         columns = curses.COLS
         date = f"Date: {str(hc.datetime.now().date())}"
         time = f"Time: {str(hc.datetime.now().time())[0:8]}"
-        stdscr.addstr(f"{date}{(columns - len(date) - len(time)) * " "}{time}", blue_and_black)
-
+        
+        stdscr.addstr(f"{date}{(columns - len(date) - len(time)) * ' '}{time}", blue_and_black)
         stdscr.refresh()
-
 
     @staticmethod
     def login_user(users: str) -> bool:
+        """
+        Renders the login UI and authenticates credentials against the stored records.
+        Updates the global current_user upon successful authentication.
+        """
         hc.helper_functions.display_page_heading("*** Log In Page ***")
         def run(stdscr):
             global current_user
@@ -124,13 +52,13 @@ class HospitalManagementSystem:
 
             curses.curs_set(1)
 
-            win.addstr(3, 5, f"Email:", curses.A_BOLD)
+            win.addstr(3, 5, "Email:", curses.A_BOLD)
             stdscr.move(rows // 4 + 2, columns // 4 + 14)
             win.move(3, 15)
             win.refresh()
             email = hc.helper_functions.take_str(stdscr, win)
 
-            win.addstr(4, 5, f"Password:", curses.A_BOLD)
+            win.addstr(4, 5, "Password:", curses.A_BOLD)
             stdscr.move(rows // 4 + 3, columns // 4 + 14)
             win.move(4, 15)
             win.refresh()
@@ -143,7 +71,7 @@ class HospitalManagementSystem:
 
             for user in pp.persons[users]:
                 security_info = user.get_security_info()
-                if security_info["email"] == email and security_info["password"] == password:
+                if security_info.get("email") == email and security_info.get("password") == password:
                     current_user = user
                     hc.helper_functions.display_success_message(win, "Log In Completed Successfully")
                     tm.sleep(3)
@@ -155,9 +83,12 @@ class HospitalManagementSystem:
 
         return wrapper(run)
 
-
     @staticmethod
     def register_user(user: str):
+        """
+        Renders the registration form for a given user role.
+        Handles real-time input validation for fields like age, email, and password.
+        """
         def run(stdscr):
             curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
             curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
@@ -177,7 +108,7 @@ class HospitalManagementSystem:
 
             def get_name():
                 try:
-                    win.addstr(3, 5, f"Full Name:{(win_columns-len("Full Name:")-5) * " "}", curses.A_BOLD)
+                    win.addstr(3, 5, f"Full Name:{(win_columns-len('Full Name:')-5) * ' '}", curses.A_BOLD)
                     stdscr.move(rows // 4 + 2, columns // 4 + 26)
                     win.move(3, 27)
                     win.refresh()
@@ -193,18 +124,20 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_name()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return val
             name = get_name()
 
             def get_age():
                 try:
-                    win.addstr(4, 5, f"Age:{(win_columns-len("Age:")-5) * " "}", curses.A_BOLD)
+                    win.addstr(4, 5, f"Age:{(win_columns-len('Age:')-5) * ' '}", curses.A_BOLD)
                     stdscr.move(rows // 4 + 3, columns // 4 + 26)
                     win.move(4, 27)
                     win.refresh()
                     val = int(hc.helper_functions.take_str(stdscr, win).strip())
+                    
+                    # Validate age boundaries based on user role
                     if user == "patient":
                         if val < 0 or val > 150:
                             raise ValueError
@@ -220,7 +153,7 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_age()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return val
             age = get_age()
@@ -229,7 +162,7 @@ class HospitalManagementSystem:
                 try:
                     win.addstr(
                         5, 5,
-                        f"Gender(Male/Female):{(win_columns-len("Gender(Male/Female):")-5) * " "}",
+                        f"Gender(Male/Female):{(win_columns-len('Gender(Male/Female):')-5) * ' '}",
                         curses.A_BOLD
                     )
                     stdscr.move(rows // 4 + 4, columns // 4 + 26)
@@ -247,14 +180,14 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_gender()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return val
             gender = get_gender()
 
             def get_email():
                 try:
-                    win.addstr(6, 5, f"Email:{(win_columns-len("Email:")-5) * " "}", curses.A_BOLD)
+                    win.addstr(6, 5, f"Email:{(win_columns-len('Email:')-5) * ' '}", curses.A_BOLD)
                     stdscr.move(rows // 4 + 5, columns // 4 + 26)
                     win.move(6, 27)
                     win.refresh()
@@ -270,14 +203,14 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_email()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return val
             email = get_email()
 
             def get_password():
                 try:
-                    win.addstr(7, 5, f"Password:{(win_columns-len("Password:")-5) * " "}", curses.A_BOLD)
+                    win.addstr(7, 5, f"Password:{(win_columns-len('Password:')-5) * ' '}", curses.A_BOLD)
                     stdscr.move(rows // 4 + 6, columns // 4 + 26)
                     win.move(7, 27)
                     win.refresh()
@@ -293,14 +226,14 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_password()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return val
             password = get_password()
 
             def get_number():
                 try:
-                    win.addstr(8, 5, f"Phone Number:{(win_columns-len("Phone Number:")-5) * " "}", curses.A_BOLD)
+                    win.addstr(8, 5, f"Phone Number:{(win_columns-len('Phone Number:')-5) * ' '}", curses.A_BOLD)
                     stdscr.move(rows // 4 + 7, columns // 4 + 26)
                     win.move(8, 27)
                     win.refresh()
@@ -317,7 +250,7 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_number()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return val
             number = get_number()
@@ -327,7 +260,7 @@ class HospitalManagementSystem:
                     try:
                         win.addstr(
                             9, 5,
-                            f"Specialization:{(win_columns - len("Specialization:") - 5) * " "}",
+                            f"Specialization:{(win_columns - len('Specialization:') - 5) * ' '}",
                             curses.A_BOLD
                         )
                         stdscr.move(rows // 4 + 8, columns // 4 + 26)
@@ -345,7 +278,7 @@ class HospitalManagementSystem:
                         win.refresh()
                         return get_specialization()
                     else:
-                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * " "}")
+                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * ' '}")
                         win.refresh()
                         return val
 
@@ -396,6 +329,10 @@ class HospitalManagementSystem:
 
     @staticmethod
     def add_building(building: str):
+        """
+        Renders the data entry form for dynamically creating new hospital building structures
+        such as Departments, Pharmacies, or Wards.
+        """
         def run(stdscr):
             curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
             curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
@@ -418,7 +355,7 @@ class HospitalManagementSystem:
                     try:
                         win.addstr(
                             3, 5,
-                            f"Department Name:{(win_columns - len("Department Name:") - 5) * " "}",
+                            f"Department Name:{(win_columns - len('Department Name:') - 5) * ' '}",
                             curses.A_BOLD
                         )
                         stdscr.move(rows // 4 + 2, columns // 4 + 26)
@@ -436,7 +373,7 @@ class HospitalManagementSystem:
                         win.refresh()
                         return get_name()
                     else:
-                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * " "}")
+                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * ' '}")
                         win.refresh()
                         return val
 
@@ -446,7 +383,7 @@ class HospitalManagementSystem:
                     try:
                         win.addstr(
                             4, 5,
-                            f"Services Offered:{(win_columns - len("Services Offered:") - 5) * " "}",
+                            f"Services Offered:{(win_columns - len('Services Offered:') - 5) * ' '}",
                             curses.A_BOLD
                         )
                         stdscr.move(rows // 4 + 3, columns // 4 + 26)
@@ -464,7 +401,7 @@ class HospitalManagementSystem:
                         win.refresh()
                         return get_services_offered()
                     else:
-                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * " "}")
+                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * ' '}")
                         win.refresh()
                         return val
 
@@ -483,7 +420,7 @@ class HospitalManagementSystem:
                     try:
                         win.addstr(
                             3, 5,
-                            f"Pharmacy Name:{(win_columns - len("Pharmacy Name:") - 5) * " "}",
+                            f"Pharmacy Name:{(win_columns - len('Pharmacy Name:') - 5) * ' '}",
                             curses.A_BOLD
                         )
                         stdscr.move(rows // 4 + 2, columns // 4 + 26)
@@ -501,7 +438,7 @@ class HospitalManagementSystem:
                         win.refresh()
                         return get_pharmacy_name()
                     else:
-                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * " "}")
+                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * ' '}")
                         win.refresh()
                         return val
 
@@ -511,7 +448,7 @@ class HospitalManagementSystem:
                     try:
                         win.addstr(
                             4, 5,
-                            f"Pharmacist Name:{(win_columns - len("Pharmacist Name:") - 5) * " "}",
+                            f"Pharmacist Name:{(win_columns - len('Pharmacist Name:') - 5) * ' '}",
                             curses.A_BOLD
                         )
                         stdscr.move(rows // 4 + 3, columns // 4 + 26)
@@ -529,7 +466,7 @@ class HospitalManagementSystem:
                         win.refresh()
                         return get_pharmacist_name()
                     else:
-                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * " "}")
+                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * ' '}")
                         win.refresh()
                         return val
 
@@ -544,7 +481,7 @@ class HospitalManagementSystem:
             else:
                 def get_room_type():
                     try:
-                        win.addstr(3, 5, f"Room Type:{(win_columns - len("Room Type:") - 5) * " "}",
+                        win.addstr(3, 5, f"Room Type:{(win_columns - len('Room Type:') - 5) * ' '}",
                                    curses.A_BOLD)
                         stdscr.move(rows // 4 + 2, columns // 4 + 26)
                         win.move(3, 27)
@@ -564,7 +501,7 @@ class HospitalManagementSystem:
                         win.refresh()
                         return get_room_type()
                     else:
-                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * " "}")
+                        win.addstr(win_rows - 1, 0, f"{(win_columns - 1) * ' '}")
                         win.refresh()
                         return val
 
@@ -580,6 +517,9 @@ class HospitalManagementSystem:
 
     @staticmethod
     def generate_bill():
+        """
+        Renders the UI for Administrators to input patient treatment costs and generate system bills.
+        """
         def run(stdscr):
             curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
             curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
@@ -607,7 +547,7 @@ class HospitalManagementSystem:
 
             def get_patient():
                 try:
-                    win.addstr(3, 5, f"Patient ID:{(win_columns-len("Patient ID:")-5) * " "}", curses.A_BOLD)
+                    win.addstr(3, 5, f"Patient ID:{(win_columns-len('Patient ID:')-5) * ' '}", curses.A_BOLD)
                     stdscr.move(rows // 4 + 2, columns // 4 + 26)
                     win.move(3, 27)
                     win.refresh()
@@ -630,14 +570,14 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_patient()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return p
             patient = get_patient()
 
             def get_treatment_cost():
                 try:
-                    win.addstr(4, 5, f"Treatment Cost:{(win_columns-len("Treatment Cost:")-5) * " "}", curses.A_BOLD)
+                    win.addstr(4, 5, f"Treatment Cost:{(win_columns-len('Treatment Cost:')-5) * ' '}", curses.A_BOLD)
                     stdscr.move(rows // 4 + 3, columns // 4 + 26)
                     win.move(4, 27)
                     win.refresh()
@@ -653,7 +593,7 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_treatment_cost()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return val
             treatment_cost = get_treatment_cost()
@@ -662,7 +602,7 @@ class HospitalManagementSystem:
                 try:
                     win.addstr(
                         5, 5,
-                        f"Medicine Cost:{(win_columns-len("Medicine Cost:")-5) * " "}",
+                        f"Medicine Cost:{(win_columns-len('Medicine Cost:')-5) * ' '}",
                         curses.A_BOLD
                     )
                     stdscr.move(rows // 4 + 4, columns // 4 + 26)
@@ -680,7 +620,7 @@ class HospitalManagementSystem:
                     win.refresh()
                     return get_medicine_cost()
                 else:
-                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * " "}")
+                    win.addstr(win_rows - 1, 0, f"{(win_columns-1) * ' '}")
                     win.refresh()
                     return val
             medicine_cost = get_medicine_cost()
@@ -689,7 +629,6 @@ class HospitalManagementSystem:
             hc.bills.append(bill)
 
             hc.helper_functions.display_success_message(win, "Bill Generated Successfully")
-            sender.send_message(f"Admin [ID: {current_user.get_id()}] Generated a Bill")
             tm.sleep(3)
 
         wrapper(run)

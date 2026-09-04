@@ -3,13 +3,15 @@ from curses import wrapper
 import time as tm
 
 import helper_classes as hc
-import sender
-
 
 class Building(ABC):
+    """
+    Abstract base class for all physical hospital structures.
+    Forces subclasses to implement the view_information method.
+    """
     __number_of_buildings: int = 0
 
-    def __init__(self) :
+    def __init__(self):
         self._id: str = str()
         Building.__number_of_buildings += 1
 
@@ -26,6 +28,10 @@ class Building(ABC):
 
 
 class Department(Building):
+    """
+    Represents a specific medical department (e.g., Cardiology, ER).
+    Manages a list of assigned doctors and the services it offers.
+    """
     __number_of_departments: int = 0
 
     def __init__(self, name: str, services_offered: list) -> None:
@@ -37,7 +43,6 @@ class Department(Building):
         Department.__number_of_departments += 1
         self._id = hc.helper_functions.generate_id("DEP", Department.get_number_of_departments())
 
-    # Getter methods
     def get_name(self) -> str:
         return self._name
     def get_services_offered(self) -> list:
@@ -47,7 +52,6 @@ class Department(Building):
     def get_doctors_list(self) -> list:
         return self._doctors_list
 
-    # Setter methods
     def set_department_name(self, name: str) -> None:
         self._name = name
     def set_head_of_department(self, head_of_department: str) -> None:
@@ -58,7 +62,6 @@ class Department(Building):
 
     def remove_doctor(self, win, doctor_id):
         idx = -1
-
         for i, doctor in enumerate(self._doctors_list):
             if doctor.get_id() == doctor_id:
                 idx = i
@@ -70,14 +73,10 @@ class Department(Building):
         else:
             del self._doctors_list[idx]
             hc.helper_functions.display_success_message(win, "Doctor Removed Successfully")
-            sender.send_message(
-                f"Doctor was Removed from Department [ID: {self.get_id()}]"
-            )
             tm.sleep(3)
 
     def view_doctors_list(self):
         hc.helper_functions.display_page_heading("Doctors List Page")
-
         def run(stdscr):
             headings = ["Name", "Age", "Gender", "Specialization"]
             cols_width = [40, 6, 8, 30]
@@ -88,14 +87,8 @@ class Department(Building):
                     doctor.get_gender(), doctor.get_specialization()
                 ])
             hc.helper_functions.display_table(
-                stdscr,
-                6,
-                "Doctors List:",
-                headings,
-                data,
-                cols_width
+                stdscr, 6, "Doctors List:", headings, data, cols_width
             )
-
         wrapper(run)
 
     def add_service(self, service: str) -> None:
@@ -112,14 +105,8 @@ class Department(Building):
                 ["Services Offered", str(self.get_services_offered())[1:-1].replace("'", "")]
             ]
             hc.helper_functions.display_table(
-                stdscr,
-                6,
-                "Department Information:",
-                headings,
-                data,
-                cols_width
+                stdscr, 6, "Department Information:", headings, data, cols_width
             )
-
         wrapper(run)
 
     @staticmethod
@@ -128,6 +115,10 @@ class Department(Building):
 
 
 class Pharmacy(Building):
+    """
+    Represents an internal hospital pharmacy.
+    Tracks medicine stock quantities and handles prescription dispensing.
+    """
     __number_of_pharmacies: int = 0
 
     def __init__(self, pharmacy_name, pharmacist_name) -> None:
@@ -166,7 +157,6 @@ class Pharmacy(Building):
 
     def view_stock(self):
         hc.helper_functions.display_page_heading("View Stock Page")
-
         def run(stdscr):
             headings = ["Medicine Name", "Quantity"]
             cols_width = [20, 12]
@@ -174,14 +164,8 @@ class Pharmacy(Building):
             for item in self._medicine_stock:
                 data.append([item, self._medicine_stock[item]])
             hc.helper_functions.display_table(
-                stdscr,
-                6,
-                "Current Stock:",
-                headings,
-                data,
-                cols_width
+                stdscr, 6, "Current Stock:", headings, data, cols_width
             )
-
         wrapper(run)
 
     def view_information(self):
@@ -194,14 +178,8 @@ class Pharmacy(Building):
                 ["Pharmacist Name", self.get_pharmacist_name()],
             ]
             hc.helper_functions.display_table(
-                stdscr,
-                6,
-                "Pharmacy Information:",
-                headings,
-                data,
-                cols_width
+                stdscr, 6, "Pharmacy Information:", headings, data, cols_width
             )
-
         wrapper(run)
 
     @staticmethod
@@ -210,6 +188,10 @@ class Pharmacy(Building):
 
 
 class Ward(Building):
+    """
+    Represents a patient ward or room (e.g., ICU, General).
+    Tracks availability and current patient assignments.
+    """
     __number_of_wards: int = 0
 
     def __init__(self, room_type) -> None:
@@ -234,7 +216,6 @@ class Ward(Building):
         self._patient = None
         self._availability = True
 
-
     def view_information(self):
         def run(stdscr):
             headings = ["Ward Data"]
@@ -250,14 +231,8 @@ class Ward(Building):
                 ["Assigned Patient Name", patient_name]
             ]
             hc.helper_functions.display_table(
-                stdscr,
-                6,
-                "Ward Information:",
-                headings,
-                data,
-                cols_width
+                stdscr, 6, "Ward Information:", headings, data, cols_width
             )
-
         wrapper(run)
 
     @staticmethod
