@@ -14,7 +14,7 @@ A robust, stateful Command-Line Interface (CLI) application built in Python. Thi
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/yourusername/hospital-management-system.git](https://github.com/yourusername/hospital-management-system.git)
+   git clone https://github.com/Galal012/Hospital-Management-System.git
    cd hospital-management-system
    ```
 
