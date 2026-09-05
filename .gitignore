@@ -1,2 +1,10 @@
+# Python cache
 __pycache__/
+*.pyc
+
+# IDE settings
 .idea/
+.vscode/
+
+# Local database state
+hospital_state.pkl
